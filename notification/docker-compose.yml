@@ -1,0 +1,96 @@
+services:
+  auth-winx:
+    build:
+      context: ./auth
+      dockerfile: ../docker/auth/Dockerfile
+      target: dev
+    container_name: auth-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./auth:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+
+  notification-winx:
+    build:
+      context: ./notification
+      dockerfile: ../docker/notification/Dockerfile
+      target: dev
+    container_name: notification-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./notification:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3002:3002"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+
+  postgres-winx:
+    image: postgres:16-alpine
+    container_name: postgres-winx
+    environment:
+      POSTGRES_DB: winx-db
+      POSTGRES_USER: winx
+      POSTGRES_PASSWORD: winx
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  kafka-winx:
+    image: bitnamilegacy/kafka:4.0.0-debian-12-r10
+    container_name: kafka-winx
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka-winx:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_HOST://:9094
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka-winx:9092,PLAINTEXT_HOST://localhost:9094
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_CFG_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    ports:
+      - "9094:9094"
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  redis-winx:
+    image: redis:7-alpine
+    container_name: redis-winx
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+    name: winx-postgres-data
+  kafka_data:
+    name: winx-kafka-data
+  redis_data:
+    name: winx-redis-data

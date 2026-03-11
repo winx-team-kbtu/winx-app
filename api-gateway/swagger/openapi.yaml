@@ -1,0 +1,257 @@
+openapi: 3.0.3
+info:
+  title: Winx API Gateway
+  version: 1.0.0
+  description: |
+    API gateway entrypoint for Winx services.
+    This spec currently documents one example endpoint implemented through the gateway.
+servers:
+  - url: http://localhost:3000
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      tags:
+        - System
+      responses:
+        '200':
+          description: Gateway is healthy
+  /api/v1/auth/login:
+    post:
+      summary: Login user through auth service
+      description: Proxies the login request to the auth service.
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
+        '404':
+          description: Login failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Gateway could not reach auth service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/register:
+    post:
+      summary: Register user through auth service
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '200':
+          description: Successful registration
+        '502':
+          description: Gateway could not reach auth service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/auth/refresh:
+    post:
+      summary: Refresh access token
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/auth/check:
+    post:
+      summary: Check bearer token
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token is valid
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/auth/logout:
+    post:
+      summary: Logout current user
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Successful logout
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/password/forgot:
+    post:
+      summary: Request password reset PIN
+      tags: [Password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset flow started
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/password/reset:
+    post:
+      summary: Reset password
+      tags: [Password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Password reset
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/password/change:
+    post:
+      summary: Change password
+      tags: [Password]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Password changed
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/password/verify-pin:
+    post:
+      summary: Verify reset PIN
+      tags: [Password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: PIN verified
+        '502':
+          description: Gateway could not reach auth service
+  /api/v1/notifications:
+    get:
+      summary: Get current user notifications
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Notifications list
+        '502':
+          description: Gateway could not reach notification service
+  /api/v1/notifications/{id}:
+    delete:
+      summary: Delete current user notification
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Notification deleted
+        '502':
+          description: Gateway could not reach notification service
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          example: StrongPassword123!
+    LoginSuccessResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          example: Bearer
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+          format: int64
+        scope:
+          type: string
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+        data:
+          nullable: true

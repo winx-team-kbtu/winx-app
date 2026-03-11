@@ -1,0 +1,18 @@
+app:
+  name: api-gateway
+  environment: development
+  url: 0.0.0.0:3000
+  key:
+
+services:
+  auth:
+    url: http://auth-winx:3001
+    api_key: ""
+  notification:
+    url: http://notification-winx:3002
+    api_key: ""
+
+swagger:
+  title: Winx API Gateway
+  description: API gateway entrypoint for Winx services.
+  version: 1.0.0

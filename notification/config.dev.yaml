@@ -1,0 +1,47 @@
+app:
+  name: notification
+  environment: development
+  url: 0.0.0.0:3002
+  key: winx-key
+
+db:
+  postgres:
+    connection: postgres
+    host: postgres-winx
+    port: 5432
+    database: winx-db
+    username: winx
+    password: winx
+    sslmode: disable
+
+redis:
+  host: redis-winx
+  password: ""
+  port: "6379"
+  cache_db: 2
+  protocol: 3
+
+kafka:
+  brokers:
+    - kafka-winx:9092
+  group_id: notification-winx
+  topics:
+    user_registered: user.registered
+    user_password: user.password
+
+oauth:
+  access_token_exp: 60
+  refresh_token_exp: 120
+
+smtp:
+  host: smtp.example.com
+  port: 587
+  username: ""
+  password: ""
+  from_email: no-reply@example.com
+  from_name: Winx Notifications
+
+graylog:
+  host: 10.10.22.63
+  port: 12201
+  source:
