@@ -58,6 +58,28 @@ services:
       - redis-winx
       - kafka-winx
 
+  profile-winx:
+    build:
+      context: ./profile
+      dockerfile: ../docker/profile/Dockerfile
+      target: dev
+    container_name: profile-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./profile:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3003:3003"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+
   postgres-winx:
     image: postgres:16-alpine
     container_name: postgres-winx
