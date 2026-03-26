@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os/signal"
@@ -11,8 +12,12 @@ import (
 	"winx-profile/configs"
 	"winx-profile/internal/app/core/http"
 	"winx-profile/internal/app/core/http/middleware"
+	eventdto "winx-profile/internal/app/domain/core/dto/services/event"
+	serviceDto "winx-profile/internal/app/domain/core/dto/services/profile"
+	profileService "winx-profile/internal/app/domain/services/profile"
 	"winx-profile/pkg/cache"
 	"winx-profile/pkg/graylog/logger"
+	"winx-profile/pkg/kafka"
 	"winx-profile/pkg/postgres"
 	"winx-profile/pkg/validation"
 
@@ -23,11 +28,16 @@ import (
 )
 
 type Server struct {
-	db         *gorm.DB
-	rdb        *redis.Client
-	cache      cache.Cache
-	validator  *validation.Validator
-	httpServer *http.Server
+	db             *gorm.DB
+	rdb            *redis.Client
+	cache          cache.Cache
+	validator      *validation.Validator
+	profileService profileService.Service
+	readers        []*kafka.Consumer
+	httpServer     *http.Server
+	groupID        string
+	brokers        []string
+	topicUserReg   string
 }
 
 var handler *gin.Engine
@@ -55,11 +65,17 @@ func newServer() (*Server, error) {
 		Addr: fmt.Sprintf("%s:%s", configs.Config.Redis.Host, configs.Config.Redis.Port),
 	})
 
+	db := postgres.NewClient()
+
 	s := &Server{
-		db:        postgres.NewClient(),
-		rdb:       rdb,
-		cache:     cache.NewRedisCache(rdb, "users"),
-		validator: validator,
+		db:             db,
+		rdb:            rdb,
+		cache:          cache.NewRedisCache(rdb, "users"),
+		validator:      validator,
+		profileService: profileService.NewService(db),
+		groupID:        configs.Config.Kafka.GroupID,
+		brokers:        configs.Config.Kafka.Brokers,
+		topicUserReg:   configs.Config.Kafka.Topics.UserRegistered,
 	}
 
 	if err := s.initRoutes(); err != nil {
@@ -75,6 +91,14 @@ func (s *Server) run(ctx context.Context) error {
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	errCh := make(chan error, 2)
+
+	if err := s.startConsumer(ctx, s.topicUserReg, s.handleUserRegistered, errCh); err != nil {
+		return err
+	}
+
+	logger.Log.Infof("profile listener started for topic: %s", s.topicUserReg)
+
 	select {
 	case <-ctx.Done():
 		return nil
@@ -82,32 +106,50 @@ func (s *Server) run(ctx context.Context) error {
 		if err == nil || errors.Is(err, context.Canceled) {
 			return nil
 		}
-
 		return fmt.Errorf("http server: %w", err)
+	case err := <-errCh:
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
 	}
 }
 
-func (s *Server) close() {
-	if s.httpServer != nil {
-		if err := s.httpServer.Shutdown(); err != nil && !errors.Is(err, context.Canceled) {
-			logger.Log.Errorf("shutdown http server: %v", err)
-		}
+func (s *Server) startConsumer(
+	ctx context.Context,
+	topic string,
+	handler func(context.Context, []byte) error,
+	errCh chan<- error,
+) error {
+	consumer, err := kafka.NewConsumer(s.brokers, topic, s.groupID)
+	if err != nil {
+		return fmt.Errorf("create kafka consumer for %s: %w", topic, err)
 	}
 
-	if s.rdb != nil {
-		if err := s.rdb.Close(); err != nil {
-			logger.Log.Errorf("close redis client: %v", err)
-		}
+	s.readers = append(s.readers, consumer)
+
+	go func() {
+		errCh <- consumer.Consume(ctx, handler)
+	}()
+
+	return nil
+}
+
+func (s *Server) handleUserRegistered(ctx context.Context, payload []byte) error {
+	var event eventdto.UserRegisteredDTO
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return fmt.Errorf("decode user registered event: %w", err)
 	}
 
-	if s.db != nil {
-		sqlDB, err := s.db.DB()
-		if err == nil {
-			if cerr := sqlDB.Close(); cerr != nil {
-				logger.Log.Errorf("close postgres client: %v", cerr)
-			}
-		}
+	_, err := s.profileService.Create(ctx, serviceDto.CreateDTO{
+		UserID: event.UserID,
+	})
+	if err != nil {
+		return fmt.Errorf("create profile for user %d: %w", event.UserID, err)
 	}
+
+	logger.Log.Infof("profile auto-created for user_id=%d", event.UserID)
+	return nil
 }
 
 func router() *gin.Engine {
@@ -141,4 +183,33 @@ func router() *gin.Engine {
 	r.Use(middleware.RecoveryWithLogger())
 
 	return r
+}
+
+func (s *Server) close() {
+	if s.httpServer != nil {
+		if err := s.httpServer.Shutdown(); err != nil && !errors.Is(err, context.Canceled) {
+			logger.Log.Errorf("shutdown http server: %v", err)
+		}
+	}
+
+	for _, reader := range s.readers {
+		if err := reader.Close(); err != nil {
+			logger.Log.Errorf("close kafka consumer: %v", err)
+		}
+	}
+
+	if s.rdb != nil {
+		if err := s.rdb.Close(); err != nil {
+			logger.Log.Errorf("close redis client: %v", err)
+		}
+	}
+
+	if s.db != nil {
+		sqlDB, err := s.db.DB()
+		if err == nil {
+			if cerr := sqlDB.Close(); cerr != nil {
+				logger.Log.Errorf("close postgres client: %v", cerr)
+			}
+		}
+	}
 }

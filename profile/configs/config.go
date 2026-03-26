@@ -15,7 +15,18 @@ type (
 		App    app     `yaml:"app"`
 		DB     db      `yaml:"db"`
 		Redis  redis   `yaml:"redis"`
+		Kafka  kafka   `yaml:"kafka"`
 		Logger grayLog `yaml:"graylog"`
+	}
+
+	kafka struct {
+		Brokers []string    `yaml:"brokers"`
+		GroupID string      `yaml:"group_id"`
+		Topics  kafkaTopics `yaml:"topics"`
+	}
+
+	kafkaTopics struct {
+		UserRegistered string `yaml:"user_registered"`
 	}
 
 	app struct {
@@ -91,6 +102,13 @@ func InitConfig() {
 			Host:     viper.GetString("redis.host"),
 			Password: viper.GetString("redis.password"),
 			Port:     viper.GetString("redis.port"),
+		},
+		Kafka: kafka{
+			Brokers: viper.GetStringSlice("kafka.brokers"),
+			GroupID: viper.GetString("kafka.group_id"),
+			Topics: kafkaTopics{
+				UserRegistered: viper.GetString("kafka.topics.user_registered"),
+			},
 		},
 		Logger: grayLog{
 			Host:   viper.GetString("graylog.host"),

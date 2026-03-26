@@ -13,6 +13,7 @@ services:
     depends_on:
       - auth-winx
       - notification-winx
+      - profile-winx
 
   auth-winx:
     build:

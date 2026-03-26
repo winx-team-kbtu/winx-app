@@ -11,6 +11,9 @@ services:
   notification:
     url: http://notification-winx:3002
     api_key: ""
+  profile:
+    url: http://profile-winx:3003
+    api_key: ""
 
 swagger:
   title: Winx API Gateway

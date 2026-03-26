@@ -27,6 +27,7 @@ type (
 	services struct {
 		Auth         service `yaml:"auth"`
 		Notification service `yaml:"notification"`
+		Profile      service `yaml:"profile"`
 	}
 
 	service struct {
@@ -73,6 +74,10 @@ func InitConfig() {
 			Notification: service{
 				URL:    viper.GetString("services.notification.url"),
 				APIKey: viper.GetString("services.notification.api_key"),
+			},
+			Profile: service{
+				URL:    viper.GetString("services.profile.url"),
+				APIKey: viper.GetString("services.profile.api_key"),
 			},
 		},
 		Swagger: swagger{

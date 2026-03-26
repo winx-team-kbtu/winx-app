@@ -3,6 +3,7 @@ package api
 import (
 	"winx-api-gateway/internal/app/modules/auth"
 	notification "winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/profile"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,10 +27,12 @@ func (s *Server) initDomainRoutes() {
 
 	authHandler := auth.NewHandler(s.authService)
 	notificationHandler := notification.NewHandler(s.notificationService)
+	profileHandler := profile.NewHandler(s.profileService)
 
 	s.initAuthRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
+	s.initProfileRoutes(profileHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -53,4 +56,13 @@ func (s *Server) initNotificationRoutes(handler *notification.Handler) {
 	notificationRoutes := mainRouter.Group("/notifications")
 	notificationRoutes.GET("", handler.List)
 	notificationRoutes.DELETE("/:id", handler.Delete)
+}
+
+func (s *Server) initProfileRoutes(handler *profile.Handler) {
+	profileRoutes := mainRouter.Group("/profile")
+	profileRoutes.GET("", handler.Get)
+	profileRoutes.PUT("", handler.Update)
+
+	adminRoutes := mainRouter.Group("/admin")
+	adminRoutes.PUT("/profile/role", handler.UpdateRole)
 }

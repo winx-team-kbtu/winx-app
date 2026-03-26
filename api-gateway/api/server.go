@@ -12,6 +12,7 @@ import (
 	"winx-api-gateway/internal/app/core/http"
 	"winx-api-gateway/internal/app/modules/auth"
 	notification "winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/profile"
 	"winx-api-gateway/internal/app/swagger"
 
 	"github.com/gin-contrib/cors"
@@ -21,6 +22,7 @@ import (
 type Server struct {
 	authService         auth.Service
 	notificationService notification.Service
+	profileService      profile.Service
 }
 
 var handler *gin.Engine
@@ -70,6 +72,13 @@ func (s *Server) initLayers(_ context.Context) error {
 		15*time.Second,
 	)
 	s.notificationService = notification.NewService(notificationClient)
+
+	profileClient := profile.NewClient(
+		configs.Config.Services.Profile.URL,
+		configs.Config.Services.Profile.APIKey,
+		15*time.Second,
+	)
+	s.profileService = profile.NewService(profileClient)
 
 	return s.initRoutes()
 }
