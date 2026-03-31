@@ -77,11 +77,20 @@ services:
       - "3003:3003"
     depends_on:
       - postgres-winx
+      - mongo-winx
       - redis-winx
       - kafka-winx
 
+  mongo-winx:
+    image: mongo:7
+    container_name: mongo-winx
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
   postgres-winx:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.5-alpine
     container_name: postgres-winx
     environment:
       POSTGRES_DB: winx-db
@@ -125,6 +134,8 @@ services:
       - redis_data:/data
 
 volumes:
+  mongo_data:
+    name: winx-mongo-data
   postgres_data:
     name: winx-postgres-data
   kafka_data:

@@ -13,21 +13,27 @@ import (
 	"winx-profile/internal/app/core/http/middleware"
 	"winx-profile/pkg/cache"
 	"winx-profile/pkg/graylog/logger"
+	"winx-profile/pkg/mongodb"
 	"winx-profile/pkg/postgres"
+	"winx-profile/pkg/s3storage"
 	"winx-profile/pkg/validation"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"gorm.io/gorm"
 )
 
 type Server struct {
-	db         *gorm.DB
-	rdb        *redis.Client
-	cache      cache.Cache
-	validator  *validation.Validator
-	httpServer *http.Server
+	pgdb        *gorm.DB
+	mongoClient *mongodriver.Client
+	mongoDB     *mongodriver.Database
+	s3Storage   s3storage.Storage
+	rdb         *redis.Client
+	cache       cache.Cache
+	validator   *validation.Validator
+	httpServer  *http.Server
 }
 
 var handler *gin.Engine
@@ -36,7 +42,7 @@ func NewServer(ctx context.Context) error {
 	configs.InitConfig()
 	logger.SetupLogger()
 
-	server, err := newServer()
+	server, err := newServer(ctx)
 	if err != nil {
 		return err
 	}
@@ -45,10 +51,20 @@ func NewServer(ctx context.Context) error {
 	return server.run(ctx)
 }
 
-func newServer() (*Server, error) {
+func newServer(ctx context.Context) (*Server, error) {
 	validator, err := validation.New()
 	if err != nil {
 		return nil, fmt.Errorf("init validator: %w", err)
+	}
+
+	mongoClient, mongoDB, err := mongodb.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("init mongodb: %w", err)
+	}
+
+	s3Client, err := s3storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("init s3 storage: %w", err)
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -56,10 +72,13 @@ func newServer() (*Server, error) {
 	})
 
 	s := &Server{
-		db:        postgres.NewClient(),
-		rdb:       rdb,
-		cache:     cache.NewRedisCache(rdb, "users"),
-		validator: validator,
+		pgdb:        postgres.NewClient(),
+		mongoClient: mongoClient,
+		mongoDB:     mongoDB,
+		s3Storage:   s3Client,
+		rdb:         rdb,
+		cache:       cache.NewRedisCache(rdb, "users"),
+		validator:   validator,
 	}
 
 	if err := s.initRoutes(); err != nil {
@@ -100,8 +119,17 @@ func (s *Server) close() {
 		}
 	}
 
-	if s.db != nil {
-		sqlDB, err := s.db.DB()
+	if s.mongoClient != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := s.mongoClient.Disconnect(ctx); err != nil {
+			logger.Log.Errorf("close mongodb client: %v", err)
+		}
+	}
+
+	if s.pgdb != nil {
+		sqlDB, err := s.pgdb.DB()
 		if err == nil {
 			if cerr := sqlDB.Close(); cerr != nil {
 				logger.Log.Errorf("close postgres client: %v", cerr)

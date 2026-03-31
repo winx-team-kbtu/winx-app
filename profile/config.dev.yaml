@@ -13,11 +13,24 @@ db:
     username: winx
     password: winx
     sslmode: disable
+  mongo:
+    uri: mongodb://mongo-winx:27017
+    database: winx-profile
+
+geoip:
+  base_url: https://ipapi.co
+  timeout_seconds: 10
 
 redis:
   host: redis-winx
   password: ""
   port: "6379"
+
+s3:
+  region: eu-north-1
+  bucket: winx-s3-080538261570-eu-north-1-an
+  access_key_id:
+  secret_access_key:
 
 kafka:
   brokers:

@@ -14,7 +14,9 @@ type (
 	config struct {
 		App    app     `yaml:"app"`
 		DB     db      `yaml:"db"`
+		GeoIP  geoIP   `yaml:"geoip"`
 		Redis  redis   `yaml:"redis"`
+		S3     s3      `yaml:"s3"`
 		Logger grayLog `yaml:"graylog"`
 	}
 
@@ -27,6 +29,7 @@ type (
 
 	db struct {
 		Postgres postgres `yaml:"postgres"`
+		Mongo    mongo    `yaml:"mongo"`
 	}
 
 	postgres struct {
@@ -39,10 +42,27 @@ type (
 		SSLMode    string `yaml:"sslmode"`
 	}
 
+	mongo struct {
+		URI      string `yaml:"uri"`
+		Database string `yaml:"database"`
+	}
+
 	redis struct {
 		Host     string `yaml:"host"`
 		Password string `yaml:"password"`
 		Port     string `yaml:"port"`
+	}
+
+	s3 struct {
+		Region          string `yaml:"region"`
+		Bucket          string `yaml:"bucket"`
+		AccessKeyID     string `yaml:"access_key_id"`
+		SecretAccessKey string `yaml:"secret_access_key"`
+	}
+
+	geoIP struct {
+		BaseURL        string `yaml:"base_url"`
+		TimeoutSeconds int    `yaml:"timeout_seconds"`
 	}
 
 	grayLog struct {
@@ -86,11 +106,25 @@ func InitConfig() {
 				Password:   viper.GetString("db.postgres.password"),
 				SSLMode:    viper.GetString("db.postgres.sslmode"),
 			},
+			Mongo: mongo{
+				URI:      viper.GetString("db.mongo.uri"),
+				Database: viper.GetString("db.mongo.database"),
+			},
+		},
+		GeoIP: geoIP{
+			BaseURL:        viper.GetString("geoip.base_url"),
+			TimeoutSeconds: viper.GetInt("geoip.timeout_seconds"),
 		},
 		Redis: redis{
 			Host:     viper.GetString("redis.host"),
 			Password: viper.GetString("redis.password"),
 			Port:     viper.GetString("redis.port"),
+		},
+		S3: s3{
+			Region:          viper.GetString("s3.region"),
+			Bucket:          viper.GetString("s3.bucket"),
+			AccessKeyID:     viper.GetString("s3.access_key_id"),
+			SecretAccessKey: viper.GetString("s3.secret_access_key"),
 		},
 		Logger: grayLog{
 			Host:   viper.GetString("graylog.host"),
