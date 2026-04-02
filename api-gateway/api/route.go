@@ -28,6 +28,7 @@ func (s *Server) initDomainRoutes() {
 	notificationHandler := notification.NewHandler(s.notificationService)
 
 	s.initAuthRoutes(authHandler)
+	s.initUserRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
 }
@@ -39,6 +40,13 @@ func (s *Server) initAuthRoutes(handler *auth.Handler) {
 	authRoutes.POST("/refresh", handler.Refresh)
 	authRoutes.POST("/check", handler.Check)
 	authRoutes.POST("/logout", handler.Logout)
+}
+
+func (s *Server) initUserRoutes(handler *auth.Handler) {
+	userRoutes := mainRouter.Group("/user")
+	userRoutes.POST("/store", handler.CreateUser)
+	userRoutes.DELETE("/delete", handler.DeleteUser)
+	userRoutes.PUT("/update", handler.UpdateUser)
 }
 
 func (s *Server) initPasswordRoutes(handler *auth.Handler) {
