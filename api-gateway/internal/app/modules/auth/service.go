@@ -8,6 +8,9 @@ type Service interface {
 	Refresh(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Check(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Logout(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
@@ -40,6 +43,18 @@ func (s *service) Check(ctx context.Context, body []byte, contentType string, he
 
 func (s *service) Logout(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return s.client.Logout(ctx, body, contentType, headers)
+}
+
+func (s *service) CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.CreateUser(ctx, body, contentType, headers)
+}
+
+func (s *service) UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.UpdateUser(ctx, body, contentType, headers)
+}
+
+func (s *service) DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.DeleteUser(ctx, body, contentType, headers)
 }
 
 func (s *service) ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
