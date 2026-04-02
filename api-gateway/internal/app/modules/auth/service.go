@@ -12,6 +12,9 @@ type Service interface {
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error)
 }
 
 type service struct {
@@ -56,4 +59,16 @@ func (s *service) ChangePassword(ctx context.Context, body []byte, contentType s
 
 func (s *service) VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return s.client.VerifyPin(ctx, body, contentType, headers)
+}
+
+func (s *service) StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.StoreRole(ctx, body, contentType, headers)
+}
+
+func (s *service) UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.UpdateRole(ctx, id, body, contentType, headers)
+}
+
+func (s *service) DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error) {
+	return s.client.DeleteRole(ctx, id, headers)
 }

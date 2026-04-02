@@ -51,6 +51,49 @@ func (h *Handler) VerifyPin(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.VerifyPin)
 }
 
+func (h *Handler) StoreRole(ctx *gin.Context) {
+	h.proxyPost(ctx, h.service.StoreRole)
+}
+
+func (h *Handler) UpdateRole(ctx *gin.Context) {
+	id := ctx.Param("id")
+	body, err := transport.ReadBody(ctx)
+	if err != nil {
+		transport.WriteJSONError(ctx, 400, "invalid request body")
+		return
+	}
+
+	resp, err := h.service.UpdateRole(
+		ctx.Request.Context(),
+		id,
+		body,
+		ctx.GetHeader("Content-Type"),
+		transport.ForwardHeaders(ctx, "Authorization"),
+	)
+	if err != nil {
+		transport.WriteJSONError(ctx, 502, "failed to reach auth service")
+		return
+	}
+
+	transport.WriteProxyResponse(ctx, resp.StatusCode, resp.ContentType, resp.Body)
+}
+
+func (h *Handler) DeleteRole(ctx *gin.Context) {
+	id := ctx.Param("id")
+
+	resp, err := h.service.DeleteRole(
+		ctx.Request.Context(),
+		id,
+		transport.ForwardHeaders(ctx, "Authorization"),
+	)
+	if err != nil {
+		transport.WriteJSONError(ctx, 502, "failed to reach auth service")
+		return
+	}
+
+	transport.WriteProxyResponse(ctx, resp.StatusCode, resp.ContentType, resp.Body)
+}
+
 func (h *Handler) proxyPost(
 	ctx *gin.Context,
 	call func(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error),

@@ -19,6 +19,9 @@ type Client interface {
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error)
 }
 
 type Response = proxy.Response
@@ -67,6 +70,28 @@ func (c *client) ChangePassword(ctx context.Context, body []byte, contentType st
 
 func (c *client) VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.doPost(ctx, "/password/verify-pin", body, contentType, headers)
+}
+
+func (c *client) StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return c.doPost(ctx, "/roles", body, contentType, headers)
+}
+
+func (c *client) UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return c.proxy.Do(ctx, proxy.Request{
+		Method:      http.MethodPut,
+		Path:        "/roles/" + id,
+		ContentType: contentType,
+		Body:        body,
+		Headers:     headers,
+	})
+}
+
+func (c *client) DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error) {
+	return c.proxy.Do(ctx, proxy.Request{
+		Method:  http.MethodDelete,
+		Path:    "/roles/" + id,
+		Headers: headers,
+	})
 }
 
 func (c *client) doPost(ctx context.Context, path string, body []byte, contentType string, headers map[string]string) (Response, error) {

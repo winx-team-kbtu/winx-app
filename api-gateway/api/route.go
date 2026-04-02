@@ -30,6 +30,7 @@ func (s *Server) initDomainRoutes() {
 	s.initAuthRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
+	s.initRoleRoutes(authHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -53,4 +54,11 @@ func (s *Server) initNotificationRoutes(handler *notification.Handler) {
 	notificationRoutes := mainRouter.Group("/notifications")
 	notificationRoutes.GET("", handler.List)
 	notificationRoutes.DELETE("/:id", handler.Delete)
+}
+
+func (s *Server) initRoleRoutes(handler *auth.Handler) {
+	roleRoutes := mainRouter.Group("/roles")
+	roleRoutes.POST("", handler.StoreRole)
+	roleRoutes.PUT("/:id", handler.UpdateRole)
+	roleRoutes.DELETE("/:id", handler.DeleteRole)
 }
