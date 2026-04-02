@@ -81,6 +81,27 @@ services:
       - redis-winx
       - kafka-winx
 
+  match-winx:
+    build:
+      context: ./match
+      dockerfile: ../docker/match/Dockerfile
+      target: dev
+    container_name: match-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./match:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3004:3004"
+    depends_on:
+      - postgres-winx
+      - kafka-winx
+
   mongo-winx:
     image: mongo:7
     container_name: mongo-winx

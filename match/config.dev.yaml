@@ -1,0 +1,34 @@
+app:
+  name: match
+  environment: development
+  url: 0.0.0.0:3004
+  key: winx-key
+
+db:
+  postgres:
+    connection: postgres
+    host: postgres-winx
+    port: 5432
+    database: winx-db
+    username: winx
+    password: winx
+    sslmode: disable
+
+redis:
+  host: redis-winx
+  password: ""
+  port: "6379"
+
+kafka:
+  brokers:
+    - kafka-winx:9092
+  group_id: match-winx
+  topics:
+    swipe_left: swipe.left
+    swipe_right: swipe.right
+    match_created: match.created
+
+graylog:
+  host: 10.10.22.63
+  port: 12201
+  source: match
