@@ -5,9 +5,11 @@ import (
 	"auth/internal/app/core/validation"
 	authHandler "auth/internal/app/domain/handlers"
 	passwordHandler "auth/internal/app/domain/handlers/password"
+	roleHandler "auth/internal/app/domain/handlers/role"
 	userHandler "auth/internal/app/domain/handlers/user"
 	authService "auth/internal/app/domain/services"
 	passwordService "auth/internal/app/domain/services/password"
+	roleService "auth/internal/app/domain/services/role"
 	tokenService "auth/internal/app/domain/services/token"
 	userService "auth/internal/app/domain/services/user"
 	uservalidationservice "auth/internal/app/domain/validation-services/user"
@@ -17,6 +19,7 @@ import (
 
 var mainRouter *gin.RouterGroup
 var authUserRouter *gin.RouterGroup
+var adminRouter *gin.RouterGroup
 
 func (s *Server) initRoutes() error {
 	handler = router()
@@ -45,6 +48,9 @@ func (s *Server) initDomainRoutes() {
 
 	authUserRouter.Use(authUserMiddleware.AuthUser(), authUserMiddleware.ContextWithAuthUser())
 
+	adminRouter = authUserRouter.Group("")
+	adminRouter.Use(middleware.AdminOnly(s.pgdb))
+
 	serviceUser := userService.NewService(s.pgdb)
 	userValidationService := uservalidationservice.New(s.dbValidator)
 	handlerUser := userHandler.NewHandler(serviceUser, binder, userValidationService)
@@ -60,9 +66,13 @@ func (s *Server) initDomainRoutes() {
 	handlerAuth := authHandler.NewHandler(serviceAuth, binder, userValidationService)
 	servicePassword := passwordService.NewService(s.pgdb, serviceToken, s.kafka)
 	handlerPassword := passwordHandler.NewHandler(servicePassword, binder)
+	svcRole := roleService.NewService(s.pgdb)
+	handlerRole := roleHandler.NewHandler(svcRole, binder)
+
 	s.initAuthRoutes(handlerAuth, authUserMiddleware)
 	s.initPasswordRoutes(handlerPassword)
 	s.initUserRoutes(handlerUser)
+	s.initRoleRoutes(handlerRole)
 }
 
 func (s *Server) initUserRoutes(handler *userHandler.Handler) {
@@ -81,6 +91,13 @@ func (s *Server) initAuthRoutes(handler *authHandler.Handler, authUserMiddleware
 
 	authUserRoutes := authUserRouter.Group("")
 	authUserRoutes.POST("/logout", handler.Logout)
+}
+
+func (s *Server) initRoleRoutes(handler *roleHandler.Handler) {
+	roleRoutes := adminRouter.Group("/roles")
+	roleRoutes.POST("", handler.Store)
+	roleRoutes.PUT("/:id", handler.Update)
+	roleRoutes.DELETE("/:id", handler.Delete)
 }
 
 func (s *Server) initPasswordRoutes(handler *passwordHandler.Handler) {
