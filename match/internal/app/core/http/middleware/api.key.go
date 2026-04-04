@@ -1,0 +1,22 @@
+package middleware
+
+import (
+	"net/http"
+
+	"winx-match/configs"
+	"winx-match/internal/app/core/helpers/response"
+
+	"github.com/gin-gonic/gin"
+)
+
+func ApiKey() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		token := ctx.GetHeader("x-api-key")
+		if token != configs.Config.App.Key {
+			ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(response.UnauthorizedSystem))
+			ctx.Abort()
+			return
+		}
+		ctx.Next()
+	}
+}
