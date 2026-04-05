@@ -76,7 +76,7 @@ func (s *Server) initDomainRoutes() {
 }
 
 func (s *Server) initUserRoutes(handler *userHandler.Handler) {
-	userRoutes := mainRouter.Group("/user")
+	userRoutes := adminRouter.Group("/user")
 	userRoutes.POST("/store", handler.Create)
 	userRoutes.DELETE("/delete", handler.Delete)
 	userRoutes.PUT("/update", handler.Update)

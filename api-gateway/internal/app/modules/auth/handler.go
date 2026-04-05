@@ -35,6 +35,18 @@ func (h *Handler) Logout(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.Logout)
 }
 
+func (h *Handler) CreateUser(ctx *gin.Context) {
+	h.proxy(ctx, h.service.CreateUser)
+}
+
+func (h *Handler) UpdateUser(ctx *gin.Context) {
+	h.proxy(ctx, h.service.UpdateUser)
+}
+
+func (h *Handler) DeleteUser(ctx *gin.Context) {
+	h.proxy(ctx, h.service.DeleteUser)
+}
+
 func (h *Handler) ForgotPassword(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.ForgotPassword)
 }
@@ -70,6 +82,13 @@ func (h *Handler) DeleteRole(ctx *gin.Context) {
 }
 
 func (h *Handler) proxyPost(
+	ctx *gin.Context,
+	call func(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error),
+) {
+	h.proxy(ctx, call)
+}
+
+func (h *Handler) proxy(
 	ctx *gin.Context,
 	call func(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error),
 ) {
