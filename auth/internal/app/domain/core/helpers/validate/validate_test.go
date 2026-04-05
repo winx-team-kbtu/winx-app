@@ -2,7 +2,7 @@ package validate
 
 import (
 	dto "auth/internal/app/domain/core/dto/services/password"
-	"auth/internal/app/models"
+	"auth/internal/app/models/models"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"

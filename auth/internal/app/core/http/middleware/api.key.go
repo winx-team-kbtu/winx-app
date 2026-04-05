@@ -1,9 +1,10 @@
 package middleware
 
 import (
+	"net/http"
+
 	"auth/configs"
 	"auth/internal/app/core/helpers/response"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,10 +15,8 @@ func ApiKey() gin.HandlerFunc {
 		if token != configs.Config.App.Key {
 			ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(response.UnauthorizedSystem))
 			ctx.Abort()
-
 			return
 		}
-
 		ctx.Next()
 	}
 }

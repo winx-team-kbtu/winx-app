@@ -16,7 +16,6 @@ outer:
 			line = 0
 			break
 		}
-
 		for _, s := range suffixesToIgnore {
 			if strings.HasSuffix(file, s) {
 				callDepth++

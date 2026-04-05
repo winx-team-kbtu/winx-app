@@ -34,9 +34,11 @@ func (s *Server) initRoutes() error {
 
 func (s *Server) initHealthCheck() error {
 	handler.GET("/health", func(ctx *gin.Context) {
-		ctx.JSON(http.StatusOK, response.SuccessResponse(nil, response.OK))
+		ctx.JSON(http.StatusOK, response.SuccessResponse(nil, "profile service is healthy"))
 	})
-
+	handler.GET("/healthz", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"success": true, "message": "profile service is healthy"})
+	})
 	return nil
 }
 

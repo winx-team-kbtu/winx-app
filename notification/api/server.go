@@ -308,7 +308,6 @@ func sentStatus(mock bool) string {
 	if mock {
 		return notifications.StatusSentMock
 	}
-
 	return notifications.StatusSent
 }
 
@@ -333,4 +332,9 @@ func (s *Server) close() {
 			_ = sqlDB.Close()
 		}
 	}
+}
+
+func (s *Server) setupLogger(_ context.Context) error {
+	logger.SetupLogger()
+	return nil
 }

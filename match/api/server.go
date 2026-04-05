@@ -32,7 +32,7 @@ type Server struct {
 	validator   *validation.Validator
 	service     service.Service
 	readers     []*kafka.Consumer
-	matchWriter kafka.Producer
+	matchWriter *kafka.Producer
 	httpServer  *apphttp.Server
 	groupID     string
 	brokers     []string
@@ -103,9 +103,6 @@ func (s *Server) run(ctx context.Context) error {
 
 	errCh := make(chan error, 3)
 
-	// -----------------------------------------------------------------------
-	// Kafka consumers: добавляй новые топики здесь по аналогии
-	// -----------------------------------------------------------------------
 	if err := s.startConsumer(ctx, s.topics.swipeLeft, s.handleSwipeLeft, errCh); err != nil {
 		return err
 	}
@@ -113,11 +110,11 @@ func (s *Server) run(ctx context.Context) error {
 		return err
 	}
 
-	producer, err := s.startProducer(s.topics.matchCreated)
+	producer, err := kafka.NewProducer(s.brokers)
 	if err != nil {
-		return err
+		return fmt.Errorf("create kafka producer for %s: %w", s.topics.matchCreated, err)
 	}
-	defer producer.Close()
+	s.matchWriter = producer
 
 	logger.Log.Infof(
 		"match listeners started for topics: %s, %s",
@@ -151,24 +148,14 @@ func router() *gin.Engine {
 		AllowOriginFunc: func(origin string) bool { return true },
 		AllowMethods:    []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders: []string{
-			"Authorization",
-			"Content-Type",
-			"X-Requested-With",
-			"Accept",
-			"Origin",
-			"X-CSRF-Token",
-			"Cache-Control",
-			"Pragma",
-			"X-Session-Id",
-			"X-api-key",
-			"X-User-Id",
-			"X-User-Email",
+			"Authorization", "Content-Type", "X-Requested-With", "Accept",
+			"Origin", "X-CSRF-Token", "Cache-Control", "Pragma",
+			"X-Session-Id", "X-api-key", "X-User-Id", "X-User-Email",
 		},
 		ExposeHeaders:    []string{"Content-Disposition"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
-
 	r.Use(middleware.RecoveryWithLogger())
 
 	return r
@@ -194,38 +181,17 @@ func (s *Server) startConsumer(
 	return nil
 }
 
-func (s *Server) startProducer(
-	topic string,
-) (*kafka.Producer, error) {
-	producer, err := kafka.NewProducer(s.brokers)
-	if err != nil {
-		return nil, fmt.Errorf("create kafka producer for %s: %w", topic, err)
-	}
-
-	return producer, nil
-}
-
-// -----------------------------------------------------------------------
-// Kafka event handlers
-// Чтобы добавить новый топик:
-//  1. Добавь поле в kafkaTopics и конфиг
-//  2. Добавь вызов startConsumer в run()
-//  3. Напиши handler-функцию по аналогии ниже
-// -----------------------------------------------------------------------
-
 func (s *Server) handleSwipeLeft(ctx context.Context, payload []byte) error {
 	var event eventdto.SwipeEventDTO
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return fmt.Errorf("decode swipe.left event: %w", err)
 	}
 
-	err := s.service.HandleSwipeLeft(ctx, event.SwiperID, event.SwipedID)
-	if err != nil {
+	if err := s.service.HandleSwipeLeft(ctx, event.SwiperID, event.SwipedID); err != nil {
 		return fmt.Errorf("handle swipe left: %w", err)
 	}
 
 	logger.Log.Infof("swipe.left: user %d swiped left on %d", event.SwiperID, event.SwipedID)
-
 	return nil
 }
 
@@ -243,13 +209,13 @@ func (s *Server) handleSwipeRight(ctx context.Context, payload []byte) error {
 	}
 
 	if created {
-		if err := s.handleCreateMatch(ctx, s.matchWriter, eventdto.MatchCreatedDTO{
+		if err := s.publishMatch(ctx, eventdto.MatchCreatedDTO{
 			UserOneID: event.SwiperID,
 			UserTwoID: event.SwipedID,
 			CreatedAt: time.Now(),
 			MatchID:   match.ID,
 		}); err != nil {
-			logger.Log.Errorf("handle create match: %v", err)
+			logger.Log.Errorf("publish match event: %v", err)
 			return err
 		}
 	}
@@ -257,16 +223,14 @@ func (s *Server) handleSwipeRight(ctx context.Context, payload []byte) error {
 	return nil
 }
 
-func (s *Server) handleCreateMatch(ctx context.Context, producer kafka.Producer, match eventdto.MatchCreatedDTO) error {
+func (s *Server) publishMatch(ctx context.Context, match eventdto.MatchCreatedDTO) error {
 	payload, err := json.Marshal(match)
 	if err != nil {
 		return fmt.Errorf("marshal match event: %w", err)
 	}
-
-	if err := producer.Publish(ctx, s.topics.matchCreated, "", payload); err != nil {
+	if err := s.matchWriter.Publish(ctx, s.topics.matchCreated, "", payload); err != nil {
 		return fmt.Errorf("publish match event: %w", err)
 	}
-
 	return nil
 }
 
@@ -278,6 +242,12 @@ func (s *Server) close() {
 	for _, reader := range s.readers {
 		if err := reader.Close(); err != nil {
 			logger.Log.Errorf("close kafka consumer: %v", err)
+		}
+	}
+
+	if s.matchWriter != nil {
+		if err := s.matchWriter.Close(); err != nil {
+			logger.Log.Errorf("close kafka match producer: %v", err)
 		}
 	}
 

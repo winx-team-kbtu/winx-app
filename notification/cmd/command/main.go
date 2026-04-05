@@ -13,6 +13,10 @@ func main() {
 	signature := flag.String("app", "a app", "a string")
 	flag.Parse()
 
+	config.InitConfig()
+	
+	logger.SetupLogger()
+
 	command, err := commands.MakeCommand(*signature)
 	if err != nil {
 		errorhandler.Fatal(err, "failed to make command")
@@ -23,9 +27,4 @@ func main() {
 	}
 
 	errorhandler.LogInfo(fmt.Sprintf("command: '%s' executed successfully", *signature))
-}
-
-func init() {
-	config.InitConfig()
-	logger.SetupLogger()
 }

@@ -1,0 +1,1498 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Winx — API Console</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@400;600;700;800&display=swap"
+			rel="stylesheet"
+		/>
+		<style>
+			/* ─── Design tokens ─── */
+			:root {
+				--bg: #0a0b0d;
+				--surface: #111318;
+				--surface2: #181c24;
+				--border: #1e2535;
+				--border2: #252d3e;
+
+				--txt: #e8ecf2;
+				--txt-dim: #6a7589;
+				--txt-muted: #3d4658;
+
+				--accent: #3d7fff;
+				--accent-glow: rgba(61, 127, 255, 0.18);
+				--accent2: #7c3aed;
+				--green: #22c55e;
+				--red: #ef4444;
+				--amber: #f59e0b;
+
+				--font-mono: 'JetBrains Mono', monospace;
+				--font-ui: 'Syne', sans-serif;
+
+				--radius: 8px;
+				--radius-lg: 14px;
+				--trans: 150ms ease;
+			}
+
+			/* ─── Reset ─── */
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
+			html {
+				font-size: 14px;
+			}
+			body {
+				background: var(--bg);
+				color: var(--txt);
+				font-family: var(--font-mono);
+				min-height: 100vh;
+				display: flex;
+				flex-direction: column;
+			}
+
+			/* ─── Layout ─── */
+			.shell {
+				display: grid;
+				grid-template-columns: 220px 1fr;
+				grid-template-rows: 56px 1fr;
+				min-height: 100vh;
+			}
+
+			/* ─── Topbar ─── */
+			.topbar {
+				grid-column: 1/-1;
+				background: var(--surface);
+				border-bottom: 1px solid var(--border);
+				display: flex;
+				align-items: center;
+				padding: 0 20px;
+				gap: 16px;
+			}
+			.topbar-logo {
+				font-family: var(--font-ui);
+				font-weight: 800;
+				font-size: 18px;
+				letter-spacing: -0.5px;
+				color: var(--txt);
+			}
+			.topbar-logo span {
+				color: var(--accent);
+			}
+			.topbar-badge {
+				background: var(--accent-glow);
+				border: 1px solid var(--accent);
+				color: var(--accent);
+				font-size: 10px;
+				font-weight: 600;
+				padding: 2px 8px;
+				border-radius: 100px;
+				letter-spacing: 0.5px;
+			}
+			.topbar-spacer {
+				flex: 1;
+			}
+			.token-pill {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				background: var(--surface2);
+				border: 1px solid var(--border2);
+				border-radius: 100px;
+				padding: 5px 12px;
+				font-size: 11px;
+			}
+			.token-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: var(--txt-muted);
+				transition:
+					background var(--trans),
+					box-shadow var(--trans);
+			}
+			.token-dot.live {
+				background: var(--green);
+				box-shadow: 0 0 6px var(--green);
+			}
+			.token-label {
+				color: var(--txt-dim);
+				font-size: 11px;
+				max-width: 180px;
+				overflow: hidden;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+			.btn-clear {
+				background: none;
+				border: none;
+				color: var(--txt-muted);
+				cursor: pointer;
+				font-family: var(--font-mono);
+				font-size: 11px;
+				padding: 0;
+				transition: color var(--trans);
+			}
+			.btn-clear:hover {
+				color: var(--red);
+			}
+
+			/* ─── Sidebar ─── */
+			.sidebar {
+				background: var(--surface);
+				border-right: 1px solid var(--border);
+				padding: 20px 0;
+				overflow-y: auto;
+			}
+			.nav-section {
+				padding: 0 12px;
+				margin-bottom: 20px;
+			}
+			.nav-label {
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 1.5px;
+				color: var(--txt-muted);
+				text-transform: uppercase;
+				padding: 0 8px;
+				margin-bottom: 6px;
+			}
+			.nav-btn {
+				width: 100%;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 9px 10px;
+				border-radius: var(--radius);
+				border: none;
+				background: transparent;
+				color: var(--txt-dim);
+				cursor: pointer;
+				font-family: var(--font-mono);
+				font-size: 12px;
+				text-align: left;
+				transition: all var(--trans);
+			}
+			.nav-btn:hover {
+				background: var(--surface2);
+				color: var(--txt);
+			}
+			.nav-btn.active {
+				background: var(--accent-glow);
+				color: var(--accent);
+				border: 1px solid rgba(61, 127, 255, 0.25);
+			}
+			.nav-icon {
+				width: 18px;
+				text-align: center;
+				font-size: 14px;
+			}
+
+			/* ─── Main panel ─── */
+			.main {
+				overflow-y: auto;
+				padding: 28px 32px;
+				background: var(--bg);
+			}
+			.panel {
+				display: none;
+			}
+			.panel.active {
+				display: block;
+			}
+			.panel-title {
+				font-family: var(--font-ui);
+				font-size: 22px;
+				font-weight: 700;
+				margin-bottom: 6px;
+			}
+			.panel-subtitle {
+				color: var(--txt-dim);
+				font-size: 12px;
+				margin-bottom: 28px;
+			}
+
+			/* ─── Cards ─── */
+			.card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: var(--radius-lg);
+				margin-bottom: 16px;
+				overflow: hidden;
+			}
+			.card-head {
+				display: flex;
+				align-items: center;
+				gap: 12px;
+				padding: 14px 18px;
+				border-bottom: 1px solid var(--border);
+				cursor: pointer;
+				user-select: none;
+			}
+			.card-head:hover {
+				background: var(--surface2);
+			}
+			.method-badge {
+				font-family: var(--font-mono);
+				font-size: 10px;
+				font-weight: 600;
+				padding: 3px 8px;
+				border-radius: 5px;
+				letter-spacing: 0.5px;
+				min-width: 46px;
+				text-align: center;
+			}
+			.badge-POST {
+				background: rgba(61, 127, 255, 0.15);
+				color: #6ba3ff;
+				border: 1px solid rgba(61, 127, 255, 0.3);
+			}
+			.badge-GET {
+				background: rgba(34, 197, 94, 0.12);
+				color: #4ade80;
+				border: 1px solid rgba(34, 197, 94, 0.3);
+			}
+			.badge-DELETE {
+				background: rgba(239, 68, 68, 0.12);
+				color: #f87171;
+				border: 1px solid rgba(239, 68, 68, 0.3);
+			}
+			.badge-PUT {
+				background: rgba(245, 158, 11, 0.12);
+				color: #fbbf24;
+				border: 1px solid rgba(245, 158, 11, 0.3);
+			}
+
+			.card-path {
+				font-family: var(--font-mono);
+				font-size: 12px;
+				color: var(--txt);
+			}
+			.card-desc {
+				font-size: 11px;
+				color: var(--txt-dim);
+				margin-left: auto;
+			}
+			.card-chevron {
+				color: var(--txt-muted);
+				font-size: 12px;
+				transition: transform var(--trans);
+			}
+			.card.open .card-chevron {
+				transform: rotate(90deg);
+			}
+			.card-body {
+				display: none;
+				padding: 18px;
+			}
+			.card.open .card-body {
+				display: block;
+			}
+
+			/* ─── Form inputs ─── */
+			.field {
+				margin-bottom: 14px;
+			}
+			.field label {
+				display: block;
+				font-size: 10px;
+				font-weight: 600;
+				letter-spacing: 0.8px;
+				color: var(--txt-muted);
+				text-transform: uppercase;
+				margin-bottom: 5px;
+			}
+			.field input,
+			.field textarea,
+			.field select {
+				width: 100%;
+				background: var(--surface2);
+				border: 1px solid var(--border2);
+				border-radius: var(--radius);
+				color: var(--txt);
+				font-family: var(--font-mono);
+				font-size: 12px;
+				padding: 9px 12px;
+				outline: none;
+				transition: border-color var(--trans);
+			}
+			.field input:focus,
+			.field textarea:focus,
+			.field select:focus {
+				border-color: var(--accent);
+			}
+			.field textarea {
+				resize: vertical;
+				min-height: 70px;
+			}
+
+			.fields-row {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 12px;
+			}
+
+			/* ─── Buttons ─── */
+			.btn {
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				padding: 9px 18px;
+				border-radius: var(--radius);
+				border: none;
+				font-family: var(--font-mono);
+				font-size: 12px;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all var(--trans);
+			}
+			.btn-primary {
+				background: var(--accent);
+				color: #fff;
+			}
+			.btn-primary:hover {
+				background: #5a8fff;
+				box-shadow: 0 0 16px var(--accent-glow);
+			}
+			.btn-primary:active {
+				transform: scale(0.97);
+			}
+			.btn-danger {
+				background: rgba(239, 68, 68, 0.15);
+				color: var(--red);
+				border: 1px solid rgba(239, 68, 68, 0.3);
+			}
+			.btn-danger:hover {
+				background: rgba(239, 68, 68, 0.25);
+			}
+			.btn-ghost {
+				background: var(--surface2);
+				color: var(--txt-dim);
+				border: 1px solid var(--border2);
+			}
+			.btn-ghost:hover {
+				color: var(--txt);
+				border-color: var(--txt-muted);
+			}
+
+			/* ─── Response block ─── */
+			.response-wrap {
+				margin-top: 16px;
+				border-radius: var(--radius);
+				overflow: hidden;
+				border: 1px solid var(--border2);
+			}
+			.response-bar {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+				padding: 8px 14px;
+				background: var(--surface2);
+				border-bottom: 1px solid var(--border2);
+				font-size: 11px;
+			}
+			.status-pill {
+				font-weight: 700;
+				padding: 2px 8px;
+				border-radius: 5px;
+				font-size: 11px;
+			}
+			.status-pill.ok {
+				background: rgba(34, 197, 94, 0.15);
+				color: var(--green);
+			}
+			.status-pill.err {
+				background: rgba(239, 68, 68, 0.15);
+				color: var(--red);
+			}
+			.status-pill.warn {
+				background: rgba(245, 158, 11, 0.15);
+				color: var(--amber);
+			}
+			.response-time {
+				color: var(--txt-muted);
+				font-size: 10px;
+				margin-left: auto;
+			}
+			.response-body {
+				background: #0d1117;
+				color: #c9d1d9;
+				font-family: var(--font-mono);
+				font-size: 11.5px;
+				line-height: 1.65;
+				max-height: 380px;
+				overflow: auto;
+				padding: 16px 18px;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+
+			/* ─── Loading spinner ─── */
+			@keyframes spin {
+				to {
+					transform: rotate(360deg);
+				}
+			}
+			.spinner {
+				width: 14px;
+				height: 14px;
+				border: 2px solid var(--border2);
+				border-top-color: var(--accent);
+				border-radius: 50%;
+				animation: spin 0.6s linear infinite;
+				display: none;
+			}
+			.btn.loading .spinner {
+				display: block;
+			}
+			.btn.loading .btn-label {
+				opacity: 0.5;
+			}
+
+			/* ─── Scrollbar ─── */
+			::-webkit-scrollbar {
+				width: 6px;
+				height: 6px;
+			}
+			::-webkit-scrollbar-track {
+				background: transparent;
+			}
+			::-webkit-scrollbar-thumb {
+				background: var(--border2);
+				border-radius: 3px;
+			}
+
+			/* ─── Misc ─── */
+			.divider {
+				border: none;
+				border-top: 1px solid var(--border);
+				margin: 20px 0;
+			}
+			.tag-row {
+				display: flex;
+				gap: 6px;
+				flex-wrap: wrap;
+				margin-bottom: 14px;
+			}
+			.tag {
+				font-size: 10px;
+				font-weight: 600;
+				padding: 3px 9px;
+				border-radius: 100px;
+				border: 1px solid var(--border2);
+				color: var(--txt-dim);
+				cursor: pointer;
+				transition: all var(--trans);
+			}
+			.tag:hover,
+			.tag.active {
+				border-color: var(--accent);
+				color: var(--accent);
+				background: var(--accent-glow);
+			}
+
+			/* ─── System health grid ─── */
+			.health-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+				gap: 12px;
+				margin-bottom: 24px;
+			}
+			.health-card {
+				background: var(--surface);
+				border: 1px solid var(--border);
+				border-radius: var(--radius-lg);
+				padding: 16px;
+				text-align: center;
+			}
+			.health-icon {
+				font-size: 22px;
+				margin-bottom: 6px;
+			}
+			.health-name {
+				font-size: 11px;
+				color: var(--txt-dim);
+				margin-bottom: 8px;
+			}
+			.health-status {
+				font-size: 10px;
+				font-weight: 700;
+				padding: 3px 10px;
+				border-radius: 100px;
+				display: inline-block;
+				letter-spacing: 0.5px;
+			}
+			.health-status.ok {
+				background: rgba(34, 197, 94, 0.12);
+				color: var(--green);
+			}
+			.health-status.down {
+				background: rgba(239, 68, 68, 0.12);
+				color: var(--red);
+			}
+			.health-status.unknown {
+				background: rgba(106, 117, 137, 0.15);
+				color: var(--txt-dim);
+			}
+		</style>
+	</head>
+	<body>
+		<div class="shell">
+			<!-- ╔════════════════════╗ -->
+			<!-- ║     TOPBAR         ║ -->
+			<!-- ╚════════════════════╝ -->
+			<header class="topbar">
+				<div class="topbar-logo">winx<span>.</span>console</div>
+				<span class="topbar-badge">DEV</span>
+				<div class="topbar-spacer"></div>
+				<div class="token-pill" id="tokenPill">
+					<div class="token-dot" id="tokenDot"></div>
+					<span class="token-label" id="tokenLabel">No token</span>
+					<button class="btn-clear" onclick="clearToken()" title="Clear token">
+						✕
+					</button>
+				</div>
+			</header>
+
+			<!-- ╔════════════════════╗ -->
+			<!-- ║     SIDEBAR        ║ -->
+			<!-- ╚════════════════════╝ -->
+			<nav class="sidebar">
+				<div class="nav-section">
+					<div class="nav-label">Auth</div>
+					<button class="nav-btn active" data-panel="auth">
+						<span class="nav-icon">🔑</span>Authentication
+					</button>
+					<button class="nav-btn" data-panel="password">
+						<span class="nav-icon">🔒</span>Password
+					</button>
+				</div>
+				<div class="nav-section">
+					<div class="nav-label">Users</div>
+					<button class="nav-btn" data-panel="profile">
+						<span class="nav-icon">👤</span>Profile
+					</button>
+					<button class="nav-btn" data-panel="photo">
+						<span class="nav-icon">📸</span>Photo
+					</button>
+				</div>
+				<div class="nav-section">
+					<div class="nav-label">Social</div>
+					<button class="nav-btn" data-panel="swipe">
+						<span class="nav-icon">💕</span>Swipe & Match
+					</button>
+					<button class="nav-btn" data-panel="notifications">
+						<span class="nav-icon">🔔</span>Notifications
+					</button>
+				</div>
+				<div class="nav-section">
+					<div class="nav-label">System</div>
+					<button class="nav-btn" data-panel="system">
+						<span class="nav-icon">⚙️</span>System
+					</button>
+				</div>
+			</nav>
+
+			<!-- ╔════════════════════╗ -->
+			<!-- ║     MAIN           ║ -->
+			<!-- ╚════════════════════╝ -->
+			<main class="main">
+				<!-- ── AUTH ── -->
+				<div class="panel active" id="panel-auth">
+					<div class="panel-title">Authentication</div>
+					<div class="panel-subtitle">
+						Register, login, token validation and session management.
+					</div>
+
+					<!-- Register -->
+					<div class="card" id="card-register">
+						<div class="card-head" onclick="toggleCard('card-register')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/register</span>
+							<span class="card-desc">Create a new account</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="fields-row">
+								<div class="field">
+									<label>Email</label>
+									<input
+										type="email"
+										id="registerEmail"
+										value="kuro@gmail.com"
+										placeholder="user@example.com"
+									/>
+								</div>
+								<div class="field">
+									<label>Password</label>
+									<input
+										type="password"
+										id="registerPassword"
+										value="Qwerty1234@"
+										placeholder="Min 8 chars, upper+lower+digit+symbol"
+									/>
+								</div>
+							</div>
+							<button class="btn btn-primary" onclick="doRegister(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Register</span>
+							</button>
+							<div id="resp-register"></div>
+						</div>
+					</div>
+
+					<!-- Login -->
+					<div class="card open" id="card-login">
+						<div class="card-head" onclick="toggleCard('card-login')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/login</span>
+							<span class="card-desc">Obtain access token</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="fields-row">
+								<div class="field">
+									<label>Email</label>
+									<input type="email" id="loginEmail" value="kuro@gmail.com" />
+								</div>
+								<div class="field">
+									<label>Password</label>
+									<input
+										type="password"
+										id="loginPassword"
+										value="Qwerty1234@"
+									/>
+								</div>
+							</div>
+							<button class="btn btn-primary" onclick="doLogin(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Login</span>
+							</button>
+							<div id="resp-login"></div>
+						</div>
+					</div>
+
+					<!-- Check -->
+					<div class="card" id="card-check">
+						<div class="card-head" onclick="toggleCard('card-check')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/check</span>
+							<span class="card-desc">Validate current token</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doCheck(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Check Token</span>
+							</button>
+							<div id="resp-check"></div>
+						</div>
+					</div>
+
+					<!-- Refresh -->
+					<div class="card" id="card-refresh">
+						<div class="card-head" onclick="toggleCard('card-refresh')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/refresh</span>
+							<span class="card-desc">Refresh access token</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Refresh Token</label>
+								<input
+									type="text"
+									id="refreshToken"
+									placeholder="Paste refresh token"
+								/>
+							</div>
+							<button class="btn btn-primary" onclick="doRefresh(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Refresh</span>
+							</button>
+							<div id="resp-refresh"></div>
+						</div>
+					</div>
+
+					<!-- Logout -->
+					<div class="card" id="card-logout">
+						<div class="card-head" onclick="toggleCard('card-logout')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/logout</span>
+							<span class="card-desc">Invalidate current session</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-danger" onclick="doLogout(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Logout</span>
+							</button>
+							<div id="resp-logout"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── PASSWORD ── -->
+				<div class="panel" id="panel-password">
+					<div class="panel-title">Password Management</div>
+					<div class="panel-subtitle">
+						Forgot password, PIN verification, and change flows.
+					</div>
+
+					<div class="card" id="card-forgot">
+						<div class="card-head" onclick="toggleCard('card-forgot')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/password/forgot</span>
+							<span class="card-desc">Request reset PIN</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Email</label>
+								<input
+									type="email"
+									id="forgotEmail"
+									placeholder="user@example.com"
+								/>
+							</div>
+							<button class="btn btn-primary" onclick="doForgot(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Send PIN</span>
+							</button>
+							<div id="resp-forgot"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-verifypin">
+						<div class="card-head" onclick="toggleCard('card-verifypin')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/password/verify-pin</span>
+							<span class="card-desc">Verify 6-digit PIN</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="fields-row">
+								<div class="field">
+									<label>Email</label>
+									<input
+										type="email"
+										id="pinEmail"
+										placeholder="user@example.com"
+									/>
+								</div>
+								<div class="field">
+									<label>PIN Code</label>
+									<input
+										type="text"
+										id="pinCode"
+										placeholder="123456"
+										maxlength="6"
+									/>
+								</div>
+							</div>
+							<button class="btn btn-primary" onclick="doVerifyPin(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Verify PIN</span>
+							</button>
+							<div id="resp-verifypin"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-resetpw">
+						<div class="card-head" onclick="toggleCard('card-resetpw')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/password/reset</span>
+							<span class="card-desc">Reset password via token</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="fields-row">
+								<div class="field">
+									<label>Email</label>
+									<input
+										type="email"
+										id="resetEmail"
+										placeholder="user@example.com"
+									/>
+								</div>
+								<div class="field">
+									<label>Reset Token</label>
+									<input
+										type="text"
+										id="resetToken"
+										placeholder="Token from verify-pin"
+									/>
+								</div>
+							</div>
+							<div class="fields-row">
+								<div class="field">
+									<label>New Password</label>
+									<input
+										type="password"
+										id="newPassword"
+										placeholder="Qwerty1234@"
+									/>
+								</div>
+								<div class="field">
+									<label>Confirm Password</label>
+									<input
+										type="password"
+										id="confirmPassword"
+										placeholder="Qwerty1234@"
+									/>
+								</div>
+							</div>
+							<button class="btn btn-primary" onclick="doReset(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Reset Password</span>
+							</button>
+							<div id="resp-resetpw"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── PROFILE ── -->
+				<div class="panel" id="panel-profile">
+					<div class="panel-title">Profile</div>
+					<div class="panel-subtitle">
+						Create and retrieve user profile information.
+					</div>
+
+					<div class="card open" id="card-getprofile">
+						<div class="card-head" onclick="toggleCard('card-getprofile')">
+							<span class="method-badge badge-GET">GET</span>
+							<span class="card-path">/profile/me</span>
+							<span class="card-desc">Get current user profile</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doGetProfile(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Fetch Profile</span>
+							</button>
+							<div id="resp-getprofile"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-storeprofile">
+						<div class="card-head" onclick="toggleCard('card-storeprofile')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/profile/store</span>
+							<span class="card-desc">Create or update profile</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="fields-row">
+								<div class="field">
+									<label>First Name</label>
+									<input type="text" id="firstName" value="Kuro" />
+								</div>
+								<div class="field">
+									<label>Birth Date (YYYY-MM-DD)</label>
+									<input type="text" id="birthDate" value="2001-09-19" />
+								</div>
+							</div>
+							<div class="fields-row">
+								<div class="field">
+									<label>Gender</label>
+									<select id="gender">
+										<option value="man" selected>Man</option>
+										<option value="woman">Woman</option>
+										<option value="non_binary">Non-binary</option>
+										<option value="other">Other</option>
+									</select>
+								</div>
+								<div class="field">
+									<label>City</label>
+									<input type="text" id="city" value="Almaty" />
+								</div>
+							</div>
+							<div class="field">
+								<label>About Me</label>
+								<textarea id="aboutMe">
+I am a professional basketball player</textarea
+								>
+							</div>
+							<button class="btn btn-primary" onclick="doStoreProfile(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Save Profile</span>
+							</button>
+							<div id="resp-storeprofile"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-interests">
+						<div class="card-head" onclick="toggleCard('card-interests')">
+							<span class="method-badge badge-GET">GET</span>
+							<span class="card-path">/profile/interests</span>
+							<span class="card-desc">Available interests list</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doGetInterests(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Get Interests</span>
+							</button>
+							<div id="resp-interests"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── PHOTO ── -->
+				<div class="panel" id="panel-photo">
+					<div class="panel-title">Profile Photo</div>
+					<div class="panel-subtitle">Upload and retrieve profile photo.</div>
+
+					<div class="card open" id="card-getphoto">
+						<div class="card-head" onclick="toggleCard('card-getphoto')">
+							<span class="method-badge badge-GET">GET</span>
+							<span class="card-path">/profile/photo</span>
+							<span class="card-desc">Get current user photo</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doGetPhoto(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Get Photo</span>
+							</button>
+							<div id="resp-getphoto"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-uploadphoto">
+						<div class="card-head" onclick="toggleCard('card-uploadphoto')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/profile/photo/store</span>
+							<span class="card-desc">Upload profile photo</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Photo File (image/*)</label>
+								<input type="file" id="photoFile" accept="image/*" />
+							</div>
+							<button class="btn btn-primary" onclick="doUploadPhoto(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Upload Photo</span>
+							</button>
+							<div id="resp-uploadphoto"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── SWIPE ── -->
+				<div class="panel" id="panel-swipe">
+					<div class="panel-title">Swipe & Match</div>
+					<div class="panel-subtitle">
+						Send swipe events. A mutual right-swipe creates a match via Kafka.
+					</div>
+
+					<div class="card open" id="card-swiperight">
+						<div class="card-head" onclick="toggleCard('card-swiperight')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/swipes/right</span>
+							<span class="card-desc">Like a user</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Target User ID</label>
+								<input
+									type="number"
+									id="swipedRightId"
+									placeholder="User ID to swipe right on"
+									min="1"
+								/>
+							</div>
+							<button class="btn btn-primary" onclick="doSwipeRight(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">❤️ Swipe Right</span>
+							</button>
+							<div id="resp-swiperight"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-swipeleft">
+						<div class="card-head" onclick="toggleCard('card-swipeleft')">
+							<span class="method-badge badge-POST">POST</span>
+							<span class="card-path">/swipes/left</span>
+							<span class="card-desc">Pass on a user</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Target User ID</label>
+								<input
+									type="number"
+									id="swipedLeftId"
+									placeholder="User ID to swipe left on"
+									min="1"
+								/>
+							</div>
+							<button class="btn btn-danger" onclick="doSwipeLeft(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">💔 Swipe Left</span>
+							</button>
+							<div id="resp-swipeleft"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── NOTIFICATIONS ── -->
+				<div class="panel" id="panel-notifications">
+					<div class="panel-title">Notifications</div>
+					<div class="panel-subtitle">View and manage user notifications.</div>
+
+					<div class="card open" id="card-notiflist">
+						<div class="card-head" onclick="toggleCard('card-notiflist')">
+							<span class="method-badge badge-GET">GET</span>
+							<span class="card-path">/notifications</span>
+							<span class="card-desc">List all notifications</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doGetNotifs(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Get Notifications</span>
+							</button>
+							<div id="resp-notiflist"></div>
+						</div>
+					</div>
+
+					<div class="card" id="card-notifdelete">
+						<div class="card-head" onclick="toggleCard('card-notifdelete')">
+							<span class="method-badge badge-DELETE">DELETE</span>
+							<span class="card-path">/notifications/:id</span>
+							<span class="card-desc">Delete a notification</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<div class="field">
+								<label>Notification ID</label>
+								<input
+									type="number"
+									id="notifId"
+									placeholder="Notification ID"
+									min="1"
+								/>
+							</div>
+							<button class="btn btn-danger" onclick="doDeleteNotif(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Delete</span>
+							</button>
+							<div id="resp-notifdelete"></div>
+						</div>
+					</div>
+				</div>
+
+				<!-- ── SYSTEM ── -->
+				<div class="panel" id="panel-system">
+					<div class="panel-title">System</div>
+					<div class="panel-subtitle">Health checks across all services.</div>
+
+					<div class="health-grid" id="healthGrid">
+						<!-- filled by JS -->
+					</div>
+
+					<div class="card open" id="card-health">
+						<div class="card-head" onclick="toggleCard('card-health')">
+							<span class="method-badge badge-GET">GET</span>
+							<span class="card-path">/healthz</span>
+							<span class="card-desc">API Gateway health</span>
+							<span class="card-chevron">▶</span>
+						</div>
+						<div class="card-body">
+							<button class="btn btn-primary" onclick="doHealth(this)">
+								<div class="spinner"></div>
+								<span class="btn-label">Ping Gateway</span>
+							</button>
+							<div id="resp-health"></div>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+
+		<script>
+			// ─── State ───────────────────────────────────────────────────────────────────
+			const API_BASE = ''
+			let token = localStorage.getItem('winx_token') || ''
+			let refreshToken = localStorage.getItem('winx_refresh') || ''
+
+			// ─── Token UI ────────────────────────────────────────────────────────────────
+			function syncTokenUI() {
+				const dot = document.getElementById('tokenDot')
+				const label = document.getElementById('tokenLabel')
+				if (token) {
+					dot.classList.add('live')
+					label.textContent = token.slice(0, 40) + '…'
+				} else {
+					dot.classList.remove('live')
+					label.textContent = 'No token'
+				}
+			}
+
+			function clearToken() {
+				token = ''
+				refreshToken = ''
+				localStorage.removeItem('winx_token')
+				localStorage.removeItem('winx_refresh')
+				syncTokenUI()
+			}
+
+			syncTokenUI()
+
+			// ─── Navigation ──────────────────────────────────────────────────────────────
+			document.querySelectorAll('.nav-btn[data-panel]').forEach(btn => {
+				btn.addEventListener('click', () => {
+					const id = btn.dataset.panel
+					document
+						.querySelectorAll('.nav-btn')
+						.forEach(b => b.classList.remove('active'))
+					document
+						.querySelectorAll('.panel')
+						.forEach(p => p.classList.remove('active'))
+					btn.classList.add('active')
+					document.getElementById('panel-' + id).classList.add('active')
+					if (id === 'system') buildHealthGrid()
+				})
+			})
+
+			// ─── Card accordion ──────────────────────────────────────────────────────────
+			function toggleCard(id) {
+				document.getElementById(id).classList.toggle('open')
+			}
+
+			// ─── HTTP helpers ────────────────────────────────────────────────────────────
+			function headers(json = true) {
+				const h = { 'x-api-key': 'winx-key' }
+				if (json) h['Content-Type'] = 'application/json'
+				if (token) h['Authorization'] = 'Bearer ' + token
+				return h
+			}
+
+			async function call(
+				path,
+				method = 'GET',
+				body = null,
+				customHeaders = null,
+			) {
+				const opts = { method, headers: customHeaders || headers() }
+				if (body) opts.body = JSON.stringify(body)
+				const t0 = Date.now()
+				try {
+					const r = await fetch(API_BASE + path, opts)
+					let data
+					const ct = r.headers.get('Content-Type') || ''
+					try {
+						data = ct.includes('application/json')
+							? await r.json()
+							: await r.text()
+					} catch {
+						data = await r.text()
+					}
+					return { status: r.status, data, ms: Date.now() - t0 }
+				} catch (e) {
+					return { status: 0, data: { error: e.message }, ms: Date.now() - t0 }
+				}
+			}
+
+			// ─── Response renderer ───────────────────────────────────────────────────────
+			function showResp(targetId, { status, data, ms }) {
+				const el = document.getElementById(targetId)
+				let pill =
+					status >= 200 && status < 300
+						? 'ok'
+						: status >= 400 && status < 500
+							? 'warn'
+							: 'err'
+				if (status === 0) pill = 'err'
+				const label = status === 0 ? 'Network Error' : status
+				const body =
+					typeof data === 'string' ? data : JSON.stringify(data, null, 2)
+
+				el.innerHTML = `
+    <div class="response-wrap">
+      <div class="response-bar">
+        <span class="status-pill ${pill}">${label}</span>
+        <span style="color:var(--txt-dim);font-size:11px">${method(status)}</span>
+        <span class="response-time">${ms}ms</span>
+      </div>
+      <div class="response-body">${escapeHtml(body)}</div>
+    </div>`
+			}
+
+			function method(status) {
+				if (status >= 200 && status < 300) return '✓ Success'
+				if (status >= 400 && status < 500) return '⚠ Client Error'
+				if (status >= 500) return '✗ Server Error'
+				return '✗ Error'
+			}
+
+			function escapeHtml(s) {
+				return String(s)
+					.replace(/&/g, '&amp;')
+					.replace(/</g, '&lt;')
+					.replace(/>/g, '&gt;')
+			}
+
+			// ─── Button loading state ────────────────────────────────────────────────────
+			function loading(btn, on) {
+				btn.classList.toggle('loading', on)
+				btn.disabled = on
+			}
+
+			// ─── API calls ───────────────────────────────────────────────────────────────
+			async function doRegister(btn) {
+				loading(btn, true)
+				const r = await call('/register', 'POST', {
+					email: document.getElementById('registerEmail').value,
+					password: document.getElementById('registerPassword').value,
+				})
+				showResp('resp-register', r)
+				loading(btn, false)
+			}
+
+			async function doLogin(btn) {
+				loading(btn, true)
+				const r = await call('/login', 'POST', {
+					email: document.getElementById('loginEmail').value,
+					password: document.getElementById('loginPassword').value,
+				})
+				if (r.status === 200 && r.data?.data?.access_token) {
+					token = r.data.data.access_token
+					refreshToken = r.data.data.refresh_token || ''
+					localStorage.setItem('winx_token', token)
+					if (refreshToken) localStorage.setItem('winx_refresh', refreshToken)
+					syncTokenUI()
+					document.getElementById('refreshToken').value = refreshToken
+				}
+				showResp('resp-login', r)
+				loading(btn, false)
+			}
+
+			async function doCheck(btn) {
+				loading(btn, true)
+				const r = await call('/check', 'POST')
+				showResp('resp-check', r)
+				loading(btn, false)
+			}
+
+			async function doRefresh(btn) {
+				loading(btn, true)
+				const rt = document.getElementById('refreshToken').value
+				const r = await call('/refresh', 'POST', { refresh_token: rt })
+				if (r.status === 200 && r.data?.data?.access_token) {
+					token = r.data.data.access_token
+					localStorage.setItem('winx_token', token)
+					syncTokenUI()
+				}
+				showResp('resp-refresh', r)
+				loading(btn, false)
+			}
+
+			async function doLogout(btn) {
+				loading(btn, true)
+				const r = await call('/logout', 'POST')
+				if (r.status === 200) clearToken()
+				showResp('resp-logout', r)
+				loading(btn, false)
+			}
+
+			async function doForgot(btn) {
+				loading(btn, true)
+				const r = await call('/password/forgot', 'POST', {
+					email: document.getElementById('forgotEmail').value,
+				})
+				showResp('resp-forgot', r)
+				loading(btn, false)
+			}
+
+			async function doVerifyPin(btn) {
+				loading(btn, true)
+				const r = await call('/password/verify-pin', 'POST', {
+					email: document.getElementById('pinEmail').value,
+					pin_code: document.getElementById('pinCode').value,
+				})
+				if (r.status === 200 && r.data?.data?.token)
+					document.getElementById('resetToken').value = r.data.data.token
+				showResp('resp-verifypin', r)
+				loading(btn, false)
+			}
+
+			async function doReset(btn) {
+				loading(btn, true)
+				const r = await call('/password/reset', 'POST', {
+					email: document.getElementById('resetEmail').value,
+					token: document.getElementById('resetToken').value,
+					new_password: document.getElementById('newPassword').value,
+					new_password_confirmation:
+						document.getElementById('confirmPassword').value,
+				})
+				showResp('resp-resetpw', r)
+				loading(btn, false)
+			}
+
+			async function doGetProfile(btn) {
+				loading(btn, true)
+				const r = await call('/profile/me', 'GET')
+				showResp('resp-getprofile', r)
+				loading(btn, false)
+			}
+
+			async function doStoreProfile(btn) {
+				loading(btn, true)
+				const r = await call('/profile/store', 'POST', {
+					first_name: document.getElementById('firstName').value || null,
+					birth_date: document.getElementById('birthDate').value || null,
+					gender: document.getElementById('gender').value || null,
+					about_me: document.getElementById('aboutMe').value || null,
+					location: {
+						city: document.getElementById('city').value || 'Unknown',
+					},
+				})
+				showResp('resp-storeprofile', r)
+				loading(btn, false)
+			}
+
+			async function doGetInterests(btn) {
+				loading(btn, true)
+				const r = await call('/profile/interests', 'GET')
+				showResp('resp-interests', r)
+				loading(btn, false)
+			}
+
+			async function doGetPhoto(btn) {
+				loading(btn, true)
+				const r = await call('/profile/photo', 'GET')
+				showResp('resp-getphoto', r)
+				loading(btn, false)
+			}
+
+			async function doUploadPhoto(btn) {
+				loading(btn, true)
+				const file = document.getElementById('photoFile').files[0]
+				if (!file) {
+					showResp('resp-uploadphoto', {
+						status: 0,
+						data: { error: 'No file selected' },
+						ms: 0,
+					})
+					loading(btn, false)
+					return
+				}
+				const form = new FormData()
+				form.append('photo', file)
+				const h = { 'x-api-key': 'winx-key' }
+				if (token) h['Authorization'] = 'Bearer ' + token
+				const t0 = Date.now()
+				try {
+					const res = await fetch(API_BASE + '/profile/photo/store', {
+						method: 'POST',
+						headers: h,
+						body: form,
+					})
+					const data = await res.json().catch(() => ({}))
+					showResp('resp-uploadphoto', {
+						status: res.status,
+						data,
+						ms: Date.now() - t0,
+					})
+				} catch (e) {
+					showResp('resp-uploadphoto', {
+						status: 0,
+						data: { error: e.message },
+						ms: Date.now() - t0,
+					})
+				}
+				loading(btn, false)
+			}
+
+			async function doSwipeRight(btn) {
+				loading(btn, true)
+				const r = await call('/swipes/right', 'POST', {
+					swiped_id: parseInt(document.getElementById('swipedRightId').value),
+				})
+				showResp('resp-swiperight', r)
+				loading(btn, false)
+			}
+
+			async function doSwipeLeft(btn) {
+				loading(btn, true)
+				const r = await call('/swipes/left', 'POST', {
+					swiped_id: parseInt(document.getElementById('swipedLeftId').value),
+				})
+				showResp('resp-swipeleft', r)
+				loading(btn, false)
+			}
+
+			async function doGetNotifs(btn) {
+				loading(btn, true)
+				const r = await call('/notifications', 'GET')
+				showResp('resp-notiflist', r)
+				loading(btn, false)
+			}
+
+			async function doDeleteNotif(btn) {
+				loading(btn, true)
+				const id = document.getElementById('notifId').value
+				const r = await call('/notifications/' + id, 'DELETE')
+				showResp('resp-notifdelete', r)
+				loading(btn, false)
+			}
+
+			async function doHealth(btn) {
+				loading(btn, true)
+				const r = await call('/healthz', 'GET')
+				showResp('resp-health', r)
+				loading(btn, false)
+			}
+
+			// ─── Health grid ─────────────────────────────────────────────────────────────
+			const services = [
+				{ name: 'API Gateway', icon: '🌐', url: '/healthz' },
+				{ name: 'Auth', icon: '🔑', url: null }, // gateway proxies
+				{ name: 'Profile', icon: '👤', url: null },
+				{ name: 'Notification', icon: '🔔', url: null },
+				{ name: 'Match', icon: '💕', url: null },
+			]
+
+			async function buildHealthGrid() {
+				const grid = document.getElementById('healthGrid')
+				grid.innerHTML = services
+					.map(
+						s => `
+    <div class="health-card" id="hc-${s.name.replace(/\s/g, '')}">
+      <div class="health-icon">${s.icon}</div>
+      <div class="health-name">${s.name}</div>
+      <div class="health-status unknown">—</div>
+    </div>
+  `,
+					)
+					.join('')
+
+				// Only gateway is directly reachable via the dashboard proxy
+				const gw = services[0]
+				const t0 = Date.now()
+				try {
+					const res = await fetch(API_BASE + gw.url, {
+						headers: { 'x-api-key': 'winx-key' },
+					})
+					const card = document.getElementById('hc-APIGateway')
+					card.querySelector('.health-status').textContent = res.ok
+						? 'ONLINE'
+						: 'ERROR'
+					card.querySelector('.health-status').className =
+						'health-status ' + (res.ok ? 'ok' : 'down')
+				} catch {}
+			}
+		</script>
+	</body>
+</html>

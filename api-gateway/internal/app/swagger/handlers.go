@@ -17,7 +17,7 @@ func UI(ctx *gin.Context) {
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script>
     window.ui = SwaggerUIBundle({
-      url: '/swagger/openapi.yaml',
+      url: '/swagger/doc.json',
       dom_id: '#swagger-ui'
     });
   </script>
@@ -27,4 +27,8 @@ func UI(ctx *gin.Context) {
 
 func Spec(ctx *gin.Context) {
 	ctx.File("swagger/openapi.yaml")
+}
+
+func JSONSpec(ctx *gin.Context) {
+	ctx.JSON(200, GetSwaggerSpec())
 }

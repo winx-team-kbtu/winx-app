@@ -21,9 +21,7 @@ type client struct {
 }
 
 func NewClient(baseURL, internalAPIKey string, timeout time.Duration) Client {
-	return &client{
-		proxy: proxy.NewClient(baseURL, internalAPIKey, timeout),
-	}
+	return &client{proxy: proxy.NewClient(baseURL, internalAPIKey, timeout)}
 }
 
 func (c *client) List(ctx context.Context, headers map[string]string, query url.Values) (Response, error) {
@@ -31,7 +29,7 @@ func (c *client) List(ctx context.Context, headers map[string]string, query url.
 		Method:  http.MethodGet,
 		Path:    "/notifications",
 		Headers: headers,
-		Query:   cloneQuery(query),
+		Query:   proxy.CloneQuery(query),
 	})
 }
 
@@ -41,14 +39,4 @@ func (c *client) Delete(ctx context.Context, id string, headers map[string]strin
 		Path:    "/notifications/" + id,
 		Headers: headers,
 	})
-}
-
-func cloneQuery(values url.Values) url.Values {
-	out := make(url.Values, len(values))
-	for key, vals := range values {
-		copied := make([]string, len(vals))
-		copy(copied, vals)
-		out[key] = copied
-	}
-	return out
 }

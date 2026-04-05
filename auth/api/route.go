@@ -13,6 +13,7 @@ import (
 	tokenService "auth/internal/app/domain/services/token"
 	userService "auth/internal/app/domain/services/user"
 	uservalidationservice "auth/internal/app/domain/validation-services/user"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,6 +35,9 @@ func (s *Server) initRoutes() error {
 }
 
 func (s *Server) initHealthCheck() error {
+	handler.GET("/healthz", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"success": true, "message": "auth service is healthy"})
+	})
 	return nil
 }
 

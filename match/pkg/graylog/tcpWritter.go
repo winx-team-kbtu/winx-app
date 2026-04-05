@@ -20,6 +20,7 @@ type TCPWriter struct {
 }
 
 func NewTCPWriter(addr string, hostname string) (*TCPWriter, error) {
+	var err error
 	w := new(TCPWriter)
 	w.MaxReconnect = DefaultMaxReconnect
 	w.ReconnectDelay = DefaultReconnectDelay
@@ -27,7 +28,6 @@ func NewTCPWriter(addr string, hostname string) (*TCPWriter, error) {
 	w.addr = addr
 	w.hostname = hostname
 
-	var err error
 	if w.conn, err = net.Dial("tcp", addr); err != nil {
 		return nil, err
 	}
@@ -35,13 +35,14 @@ func NewTCPWriter(addr string, hostname string) (*TCPWriter, error) {
 	return w, nil
 }
 
-func (w *TCPWriter) WriteMessage(m *Message) error {
+func (w *TCPWriter) WriteMessage(m *Message) (err error) {
 	buf := newBuffer()
 	defer bufPool.Put(buf)
 	messageBytes, err := m.toBytes(buf)
 	if err != nil {
 		return err
 	}
+
 	messageBytes = append(messageBytes, 0)
 
 	n, err := w.writeToSocketWithReconnectAttempts(messageBytes)
@@ -51,31 +52,33 @@ func (w *TCPWriter) WriteMessage(m *Message) error {
 	if n != len(messageBytes) {
 		return fmt.Errorf("bad write (%d/%d)", n, len(messageBytes))
 	}
+
 	return nil
 }
 
-func (w *TCPWriter) Write(p []byte) (int, error) {
+func (w *TCPWriter) Write(p []byte) (n int, err error) {
 	file, line := getCallerIgnoringLogMulti(1)
 	m := constructMessage(p, w.hostname, w.Facility, file, line)
-	if err := w.WriteMessage(m); err != nil {
+
+	if err = w.WriteMessage(m); err != nil {
 		return 0, err
 	}
+
 	return len(p), nil
 }
 
-func (w *TCPWriter) writeToSocketWithReconnectAttempts(zBytes []byte) (int, error) {
+func (w *TCPWriter) writeToSocketWithReconnectAttempts(zBytes []byte) (n int, err error) {
 	var errConn error
 	var i int
-	var n int
-	var err error
 
 	w.mu.Lock()
 	for i = 0; i <= w.MaxReconnect; i++ {
 		errConn = nil
+
 		if w.conn != nil {
 			n, err = w.conn.Write(zBytes)
 		} else {
-			err = fmt.Errorf("connection was nil, will attempt reconnect")
+			err = fmt.Errorf("Connection was nil, will attempt reconnect")
 		}
 		if err != nil {
 			time.Sleep(w.ReconnectDelay * time.Second)
@@ -87,10 +90,10 @@ func (w *TCPWriter) writeToSocketWithReconnectAttempts(zBytes []byte) (int, erro
 	w.mu.Unlock()
 
 	if i > w.MaxReconnect {
-		return 0, fmt.Errorf("maximum reconnection attempts was reached; giving up")
+		return 0, fmt.Errorf("Maximum reconnection attempts was reached; giving up")
 	}
 	if errConn != nil {
-		return 0, fmt.Errorf("write failed: %s\nreconnection failed: %s", err, errConn)
+		return 0, fmt.Errorf("Write Failed: %s\nReconnection failed: %s", err, errConn)
 	}
 	return n, nil
 }

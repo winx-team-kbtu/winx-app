@@ -3,112 +3,127 @@ services:
     build:
       context: ./api-gateway
       dockerfile: ../docker/api-gateway/Dockerfile
-      target: dev
     container_name: api-gateway-winx
-    command: ["air", "-c", "/app/air.toml"]
-    volumes:
-      - ./api-gateway:/app
     ports:
-      - "3000:3000"
+      - '3000:3000'
     depends_on:
-      - auth-winx
-      - notification-winx
+      auth-winx:
+        condition: service_started
+      notification-winx:
+        condition: service_started
+      profile-winx:
+        condition: service_started
+      match-winx:
+        condition: service_started
+    environment:
+      - APP_ENV=development
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   auth-winx:
     build:
       context: ./auth
       dockerfile: ../docker/auth/Dockerfile
-      target: dev
     container_name: auth-winx
-    command: ["air", "-c", "/app/air.toml"]
-    volumes:
-      - ./auth:/app
-    environment:
-      DB_HOST: postgres-winx
-      DB_PORT: 5432
-      DB_NAME: winx-db
-      DB_USER: winx
-      DB_PASSWORD: winx
     ports:
-      - "3001:3001"
+      - '3001:3001'
+    environment:
+      - APP_ENV=development
     depends_on:
-      - postgres-winx
-      - redis-winx
-      - kafka-winx
+      postgres-winx:
+        condition: service_healthy
+      redis-winx:
+        condition: service_healthy
+      kafka-winx:
+        condition: service_started
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   notification-winx:
     build:
       context: ./notification
       dockerfile: ../docker/notification/Dockerfile
-      target: dev
     container_name: notification-winx
-    command: ["air", "-c", "/app/air.toml"]
-    volumes:
-      - ./notification:/app
-    environment:
-      DB_HOST: postgres-winx
-      DB_PORT: 5432
-      DB_NAME: winx-db
-      DB_USER: winx
-      DB_PASSWORD: winx
     ports:
-      - "3002:3002"
+      - '3002:3002'
+    environment:
+      - APP_ENV=development
     depends_on:
-      - postgres-winx
-      - redis-winx
-      - kafka-winx
+      postgres-winx:
+        condition: service_healthy
+      redis-winx:
+        condition: service_healthy
+      kafka-winx:
+        condition: service_started
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   profile-winx:
     build:
       context: ./profile
       dockerfile: ../docker/profile/Dockerfile
-      target: dev
     container_name: profile-winx
-    command: ["air", "-c", "/app/air.toml"]
-    volumes:
-      - ./profile:/app
-    environment:
-      DB_HOST: postgres-winx
-      DB_PORT: 5432
-      DB_NAME: winx-db
-      DB_USER: winx
-      DB_PASSWORD: winx
     ports:
-      - "3003:3003"
+      - '3003:3003'
+    environment:
+      - APP_ENV=development
     depends_on:
-      - postgres-winx
-      - mongo-winx
-      - redis-winx
-      - kafka-winx
+      postgres-winx:
+        condition: service_healthy
+      mongo-winx:
+        condition: service_started
+      redis-winx:
+        condition: service_healthy
+      kafka-winx:
+        condition: service_started
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   match-winx:
     build:
       context: ./match
       dockerfile: ../docker/match/Dockerfile
-      target: dev
     container_name: match-winx
-    command: ["air", "-c", "/app/air.toml"]
-    volumes:
-      - ./match:/app
-    environment:
-      DB_HOST: postgres-winx
-      DB_PORT: 5432
-      DB_NAME: winx-db
-      DB_USER: winx
-      DB_PASSWORD: winx
     ports:
-      - "3004:3004"
+      - '3004:3004'
+    environment:
+      - APP_ENV=development
     depends_on:
-      - postgres-winx
-      - kafka-winx
+      postgres-winx:
+        condition: service_healthy
+      kafka-winx:
+        condition: service_started
+    networks:
+      - winx-network
+    restart: unless-stopped
+
+  test-dashboard-winx:
+    build:
+      context: .
+      dockerfile: docker/test-dashboard/Dockerfile
+    container_name: test-dashboard-winx
+    ports:
+      - '8080:80'
+    depends_on:
+      - api-gateway-winx
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   mongo-winx:
     image: mongo:7
     container_name: mongo-winx
     ports:
-      - "27017:27017"
+      - '27017:27017'
     volumes:
       - mongo_data:/data/db
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   postgres-winx:
     image: postgis/postgis:16-3.5-alpine
@@ -118,9 +133,17 @@ services:
       POSTGRES_USER: winx
       POSTGRES_PASSWORD: winx
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - winx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U winx -d winx-db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka-winx:
     image: bitnamilegacy/kafka:4.0.0-debian-12-r10
@@ -134,32 +157,36 @@ services:
       KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
-      KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_CFG_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      ALLOW_PLAINTEXT_LISTENER: 'yes'
     ports:
-      - "9094:9094"
-    volumes:
-      - kafka_data:/bitnami/kafka
+      - '9094:9094'
+    networks:
+      - winx-network
+    restart: unless-stopped
 
   redis-winx:
     image: redis:7-alpine
     container_name: redis-winx
-    command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6380:6379"
+      - '6380:6379'
+    command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis_data:/data
+    networks:
+      - winx-network
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  winx-network:
+    driver: bridge
 
 volumes:
   mongo_data:
-    name: winx-mongo-data
   postgres_data:
-    name: winx-postgres-data
   kafka_data:
-    name: winx-kafka-data
   redis_data:
-    name: winx-redis-data

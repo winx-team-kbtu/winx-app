@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"winx-match/internal/app/core/http/middleware"
 	"winx-match/internal/app/core/validation"
 	matchHandler "winx-match/internal/app/domain/handlers/match"
@@ -28,6 +29,10 @@ import (
 // -----------------------------------------------------------------------
 func (s *Server) initRoutes() error {
 	handler = router()
+
+	handler.GET("/healthz", func(ctx *gin.Context) {
+		ctx.JSON(http.StatusOK, gin.H{"success": true, "message": "match service is healthy"})
+	})
 
 	mainRouter := handler.Group("")
 	mainRouter.Use(middleware.ApiKey())

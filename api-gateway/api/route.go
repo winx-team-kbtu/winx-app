@@ -2,7 +2,8 @@ package api
 
 import (
 	"winx-api-gateway/internal/app/modules/auth"
-	notification "winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/profile"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,15 +23,17 @@ func (s *Server) initRoutes() error {
 }
 
 func (s *Server) initDomainRoutes() {
-	mainRouter = handler.Group("/api/v1")
+	mainRouter = handler.Group("")
 
 	authHandler := auth.NewHandler(s.authService)
 	notificationHandler := notification.NewHandler(s.notificationService)
+	profileHandler := profile.NewHandler(s.profileService)
 
 	s.initAuthRoutes(authHandler)
 	s.initUserRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
+	s.initProfileRoutes(profileHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -61,4 +64,14 @@ func (s *Server) initNotificationRoutes(handler *notification.Handler) {
 	notificationRoutes := mainRouter.Group("/notifications")
 	notificationRoutes.GET("", handler.List)
 	notificationRoutes.DELETE("/:id", handler.Delete)
+}
+
+func (s *Server) initProfileRoutes(handler *profile.Handler) {
+	profileRoutes := mainRouter.Group("/profile")
+	profileRoutes.GET("/me", handler.GetMe)
+	profileRoutes.POST("/store", handler.Store)
+	profileRoutes.GET("/photo", handler.GetPhoto)
+	profileRoutes.POST("/photo/store", handler.StorePhoto)
+	profileRoutes.GET("/interests", handler.ListInterests)
+	profileRoutes.GET("/location/ip", handler.LookupLocation)
 }

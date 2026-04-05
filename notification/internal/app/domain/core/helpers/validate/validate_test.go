@@ -1,9 +1,9 @@
 package validate
 
 import (
-	dto "winx-notification/internal/app/domain/core/dto/services/password"
-	"winx-notification/internal/app/models"
 	"testing"
+	dto "winx-notification/internal/app/domain/core/dto/services/password"
+	"winx-notification/internal/app/models/models"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/crypto/bcrypt"

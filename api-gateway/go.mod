@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.12.0
+	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/viper v1.21.0
 )
 

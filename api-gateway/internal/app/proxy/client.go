@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"winx-api-gateway/pkg/graylog/logger"
 )
 
 type Response struct {
@@ -53,8 +55,11 @@ func (c *Client) Do(ctx context.Context, req Request) (Response, error) {
 		requestURL += "?" + req.Query.Encode()
 	}
 
+	logger.Log.Infof("Proxy request: %s %s", method, requestURL)
+
 	httpReq, err := http.NewRequestWithContext(ctx, method, requestURL, bytes.NewReader(req.Body))
 	if err != nil {
+		logger.Log.Errorf("Failed to create proxy request: %v", err)
 		return Response{}, fmt.Errorf("create proxy request: %w", err)
 	}
 
@@ -72,18 +77,32 @@ func (c *Client) Do(ctx context.Context, req Request) (Response, error) {
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
+		logger.Log.Errorf("Proxy request failed: %v", err)
 		return Response{}, fmt.Errorf("perform proxy request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		logger.Log.Errorf("Failed to read proxy response: %v", err)
 		return Response{}, fmt.Errorf("read proxy response: %w", err)
 	}
+
+	logger.Log.Infof("Proxy response: %d %s", resp.StatusCode, requestURL)
 
 	return Response{
 		StatusCode:  resp.StatusCode,
 		ContentType: resp.Header.Get("Content-Type"),
 		Body:        responseBody,
 	}, nil
+}
+
+func CloneQuery(values url.Values) url.Values {
+	out := make(url.Values, len(values))
+	for key, vals := range values {
+		copied := make([]string, len(vals))
+		copy(copied, vals)
+		out[key] = copied
+	}
+	return out
 }

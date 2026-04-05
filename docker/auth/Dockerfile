@@ -1,34 +1,30 @@
-FROM golang:1.25-alpine AS base
+# ---------- BUILD ----------
+FROM golang:1.25-alpine AS build
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates git tzdata
+RUN apk add --no-cache ca-certificates git
 
-COPY go.mod ./
-COPY go.sum ./
+COPY go.mod go.sum ./
 RUN go mod download
 
-COPY . ./
+COPY . .
 
-FROM base AS dev
-RUN go install github.com/air-verse/air@latest
-CMD ["air", "-c", "/app/air.toml"]
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o main cmd/http/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o migrate cmd/migration/main.go
 
-FROM base AS build
-RUN CGO_ENABLED=0 go build -o main cmd/http/main.go
-RUN CGO_ENABLED=0 go build -o migrate cmd/migration/main.go
-RUN CGO_ENABLED=0 go build -o command cmd/command/main.go
-
-FROM alpine:latest AS publish
+# ---------- RUNTIME ----------
+FROM alpine:latest
 WORKDIR /app
 
-RUN apk add --no-cache ghostscript tzdata
+RUN apk add --no-cache ca-certificates tzdata
 
 ENV TZ=Asia/Almaty
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-COPY --from=build /app/main main
-COPY --from=build /app/config.dev.yaml config.yaml
-COPY --from=build /app/migrate migrate
-COPY --from=build /app/command command
+COPY --from=build /app/main ./main
+COPY --from=build /app/migrate ./migrate
+COPY --from=build /app/config.dev.yaml ./config.dev.development.yaml
 
-ENTRYPOINT ["/app/main"]
+EXPOSE 3001
+
+CMD ["sh", "-c", "./migrate -cmd up && ./main"]

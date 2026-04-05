@@ -2,7 +2,7 @@ app:
   name: auth
   environment: development
   url: 0.0.0.0:3001
-  key:
+  key: winx-key
 
 db:
   postgres:

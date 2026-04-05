@@ -13,18 +13,6 @@ type GelfFormatter struct{}
 
 type fields map[string]interface{}
 
-var (
-	DefaultLevel = LOG_INFO
-	levelMap     = map[logrus.Level]Priority{
-		logrus.PanicLevel: LOG_EMERG,
-		logrus.FatalLevel: LOG_CRIT,
-		logrus.ErrorLevel: LOG_ERR,
-		logrus.WarnLevel:  LOG_WARNING,
-		logrus.InfoLevel:  LOG_INFO,
-		logrus.DebugLevel: LOG_DEBUG,
-	}
-)
-
 func (f *GelfFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	data := make(fields, len(entry.Data)+6)
 	blacklist := []string{"_id", "id", "timestamp", "version", "level"}
@@ -52,8 +40,9 @@ func (f *GelfFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 
 	serialized, err := json.Marshal(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal fields to JSON, %v", err)
+		return nil, fmt.Errorf("Failed to marshal fields to JSON, %v", err)
 	}
+
 	return append(serialized, '\n'), nil
 }
 
@@ -71,9 +60,21 @@ func round(val float64, places int) float64 {
 	return math.Floor((val*shift)+.5) / shift
 }
 
-func toSyslogLevel(level logrus.Level) Priority {
-	if syslog, ok := levelMap[level]; ok {
-		return syslog
+func toSyslogLevel(level logrus.Level) int32 {
+	switch level {
+	case logrus.PanicLevel:
+		return 0
+	case logrus.FatalLevel:
+		return 1
+	case logrus.ErrorLevel:
+		return 3
+	case logrus.WarnLevel:
+		return 4
+	case logrus.InfoLevel:
+		return 6
+	case logrus.DebugLevel:
+		return 7
+	default:
+		return 6
 	}
-	return DefaultLevel
 }

@@ -31,29 +31,27 @@ type client struct {
 }
 
 func NewClient(baseURL, internalAPIKey string, timeout time.Duration) Client {
-	return &client{
-		proxy: proxy.NewClient(baseURL, internalAPIKey, timeout),
-	}
+	return &client{proxy: proxy.NewClient(baseURL, internalAPIKey, timeout)}
 }
 
 func (c *client) Login(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/login", body, contentType, headers)
+	return c.post(ctx, "/login", body, contentType, headers)
 }
 
 func (c *client) Register(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/register", body, contentType, headers)
+	return c.post(ctx, "/register", body, contentType, headers)
 }
 
 func (c *client) Refresh(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/refresh", body, contentType, headers)
+	return c.post(ctx, "/refresh", body, contentType, headers)
 }
 
 func (c *client) Check(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/check", body, contentType, headers)
+	return c.post(ctx, "/check", body, contentType, headers)
 }
 
 func (c *client) Logout(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/logout", body, contentType, headers)
+	return c.post(ctx, "/logout", body, contentType, headers)
 }
 
 func (c *client) CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
@@ -69,26 +67,26 @@ func (c *client) DeleteUser(ctx context.Context, body []byte, contentType string
 }
 
 func (c *client) ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/password/forgot", body, contentType, headers)
+	return c.post(ctx, "/password/forgot", body, contentType, headers)
 }
 
 func (c *client) ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/password/reset", body, contentType, headers)
+	return c.post(ctx, "/password/reset", body, contentType, headers)
 }
 
 func (c *client) ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/password/change", body, contentType, headers)
+	return c.post(ctx, "/password/change", body, contentType, headers)
 }
 
 func (c *client) VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.doPost(ctx, "/password/verify-pin", body, contentType, headers)
+	return c.post(ctx, "/password/verify-pin", body, contentType, headers)
 }
 
-func (c *client) doPost(ctx context.Context, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
+func (c *client) post(ctx context.Context, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.do(ctx, http.MethodPost, path, body, contentType, headers)
 }
 
-func (c *client) do(ctx context.Context, method string, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
+func (c *client) do(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.proxy.Do(ctx, proxy.Request{
 		Method:      method,
 		Path:        path,
@@ -98,12 +96,4 @@ func (c *client) do(ctx context.Context, method string, path string, body []byte
 	})
 }
 
-func cloneQuery(values url.Values) url.Values {
-	out := make(url.Values, len(values))
-	for key, vals := range values {
-		copied := make([]string, len(vals))
-		copy(copied, vals)
-		out[key] = copied
-	}
-	return out
-}
+func cloneQuery(values url.Values) url.Values { return proxy.CloneQuery(values) }
