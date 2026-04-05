@@ -15,9 +15,6 @@ type Client interface {
 	Refresh(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Check(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Logout(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
@@ -56,18 +53,6 @@ func (c *client) Logout(ctx context.Context, body []byte, contentType string, he
 	return c.doPost(ctx, "/logout", body, contentType, headers)
 }
 
-func (c *client) CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.do(ctx, http.MethodPost, "/user/store", body, contentType, headers)
-}
-
-func (c *client) UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.do(ctx, http.MethodPut, "/user/update", body, contentType, headers)
-}
-
-func (c *client) DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.do(ctx, http.MethodDelete, "/user/delete", body, contentType, headers)
-}
-
 func (c *client) ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.doPost(ctx, "/password/forgot", body, contentType, headers)
 }
@@ -85,12 +70,8 @@ func (c *client) VerifyPin(ctx context.Context, body []byte, contentType string,
 }
 
 func (c *client) doPost(ctx context.Context, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return c.do(ctx, http.MethodPost, path, body, contentType, headers)
-}
-
-func (c *client) do(ctx context.Context, method string, path string, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.proxy.Do(ctx, proxy.Request{
-		Method:      method,
+		Method:      http.MethodPost,
 		Path:        path,
 		ContentType: contentType,
 		Body:        body,

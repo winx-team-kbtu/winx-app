@@ -8,13 +8,13 @@ type Service interface {
 	Refresh(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Check(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	Logout(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
-	DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error)
 }
 
 type service struct {
@@ -45,18 +45,6 @@ func (s *service) Logout(ctx context.Context, body []byte, contentType string, h
 	return s.client.Logout(ctx, body, contentType, headers)
 }
 
-func (s *service) CreateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return s.client.CreateUser(ctx, body, contentType, headers)
-}
-
-func (s *service) UpdateUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return s.client.UpdateUser(ctx, body, contentType, headers)
-}
-
-func (s *service) DeleteUser(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-	return s.client.DeleteUser(ctx, body, contentType, headers)
-}
-
 func (s *service) ForgotPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return s.client.ForgotPassword(ctx, body, contentType, headers)
 }
@@ -71,4 +59,16 @@ func (s *service) ChangePassword(ctx context.Context, body []byte, contentType s
 
 func (s *service) VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return s.client.VerifyPin(ctx, body, contentType, headers)
+}
+
+func (s *service) StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.StoreRole(ctx, body, contentType, headers)
+}
+
+func (s *service) UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.UpdateRole(ctx, id, body, contentType, headers)
+}
+
+func (s *service) DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error) {
+	return s.client.DeleteRole(ctx, id, headers)
 }

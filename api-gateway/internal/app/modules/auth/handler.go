@@ -63,6 +63,24 @@ func (h *Handler) VerifyPin(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.VerifyPin)
 }
 
+func (h *Handler) StoreRole(ctx *gin.Context) {
+	h.proxyPost(ctx, h.service.StoreRole)
+}
+
+func (h *Handler) UpdateRole(ctx *gin.Context) {
+	id := ctx.Param("id")
+	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+		return h.service.UpdateRole(c, id, body, contentType, headers)
+	})
+}
+
+func (h *Handler) DeleteRole(ctx *gin.Context) {
+	id := ctx.Param("id")
+	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+		return h.service.DeleteRole(c, id, headers)
+	})
+}
+
 func (h *Handler) proxyPost(
 	ctx *gin.Context,
 	call func(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error),
