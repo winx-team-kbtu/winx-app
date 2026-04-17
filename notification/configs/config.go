@@ -57,6 +57,7 @@ type (
 	kafkaTopics struct {
 		UserRegistered string `yaml:"user_registered"`
 		UserPassword   string `yaml:"user_password"`
+		MatchCreated   string `yaml:"match_created"`
 	}
 
 	grayLog struct {
@@ -128,6 +129,7 @@ func InitConfig() {
 			Topics: kafkaTopics{
 				UserRegistered: viper.GetString("kafka.topics.user_registered"),
 				UserPassword:   viper.GetString("kafka.topics.user_password"),
+				MatchCreated:   viper.GetString("kafka.topics.match_created"),
 			},
 		},
 		Logger: grayLog{

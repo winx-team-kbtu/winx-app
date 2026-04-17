@@ -35,17 +35,18 @@ func (h *Handler) Logout(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.Logout)
 }
 
-func (h *Handler) CreateUser(ctx *gin.Context) {
-	h.proxy(ctx, h.service.CreateUser)
-}
-
-func (h *Handler) UpdateUser(ctx *gin.Context) {
-	h.proxy(ctx, h.service.UpdateUser)
-}
-
-func (h *Handler) DeleteUser(ctx *gin.Context) {
-	h.proxy(ctx, h.service.DeleteUser)
-}
+//
+//func (h *Handler) CreateUser(ctx *gin.Context) {
+//	h.proxy(ctx, h.service.CreateUser)
+//}
+//
+//func (h *Handler) UpdateUser(ctx *gin.Context) {
+//	h.proxy(ctx, h.service.UpdateUser)
+//}
+//
+//func (h *Handler) DeleteUser(ctx *gin.Context) {
+//	h.proxy(ctx, h.service.DeleteUser)
+//}
 
 func (h *Handler) ForgotPassword(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.ForgotPassword)
@@ -63,23 +64,23 @@ func (h *Handler) VerifyPin(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.VerifyPin)
 }
 
-func (h *Handler) StoreRole(ctx *gin.Context) {
-	h.proxyPost(ctx, h.service.StoreRole)
-}
-
-func (h *Handler) UpdateRole(ctx *gin.Context) {
-	id := ctx.Param("id")
-	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-		return h.service.UpdateRole(c, id, body, contentType, headers)
-	})
-}
-
-func (h *Handler) DeleteRole(ctx *gin.Context) {
-	id := ctx.Param("id")
-	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
-		return h.service.DeleteRole(c, id, headers)
-	})
-}
+//func (h *Handler) StoreRole(ctx *gin.Context) {
+//	h.proxyPost(ctx, h.service.StoreRole)
+//}
+//
+//func (h *Handler) UpdateRole(ctx *gin.Context) {
+//	id := ctx.Param("id")
+//	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+//		return h.service.UpdateRole(c, id, body, contentType, headers)
+//	})
+//}
+//
+//func (h *Handler) DeleteRole(ctx *gin.Context) {
+//	id := ctx.Param("id")
+//	h.proxyPost(ctx, func(c context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+//		return h.service.DeleteRole(c, id, headers)
+//	})
+//}
 
 func (h *Handler) proxyPost(
 	ctx *gin.Context,

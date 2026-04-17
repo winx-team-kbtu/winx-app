@@ -20,6 +20,7 @@ const (
 	ChannelEmail      = "email"
 	TypeWelcome       = "welcome"
 	TypePasswordReset = "password_reset"
+	TypeMatch         = "match"
 )
 
 var ErrTypeNotFound = errors.New("notification type not found")

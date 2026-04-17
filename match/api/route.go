@@ -5,27 +5,11 @@ import (
 	"winx-match/internal/app/core/validation"
 	matchHandler "winx-match/internal/app/domain/handlers/match"
 	swipeHandler "winx-match/internal/app/domain/handlers/swipe"
-	swipeService "winx-match/internal/app/domain/services/swipe"
+	matchService "winx-match/internal/app/domain/services/match"
 
 	"github.com/gin-gonic/gin"
 )
 
-// -----------------------------------------------------------------------
-// initRoutes — точка входа для всех маршрутов сервиса.
-//
-// Структура роутов:
-//
-//	mainRouter       — защищён middleware ApiKey (X-api-key header)
-//	authUserRouter   — дополнительно требует валидного Bearer-токена
-//
-// Чтобы добавить новую группу эндпоинтов:
-//  1. Создай handler    в internal/app/domain/handlers/<name>/handler.go
-//  2. Создай service    в internal/app/domain/services/<name>/service.go
-//  3. Создай repository в internal/app/domain/repositories/<name>/repository.go
-//  4. Создай DTO        в internal/app/domain/core/dto/{requests,services,repositories}/<name>/dto.go
-//  5. Зарегистрируй маршруты здесь по аналогии с initSwipeRoutes / initMatchRoutes
-//
-// -----------------------------------------------------------------------
 func (s *Server) initRoutes() error {
 	handler = router()
 
@@ -38,27 +22,25 @@ func (s *Server) initRoutes() error {
 
 	binder := validation.NewBinder(s.validator)
 
-	svcSwipe := swipeService.NewService(s.db)
-	hSwipe := swipeHandler.NewHandler(svcSwipe, binder)
+	// s.service is general.Service — used by the swipe handler so it can detect mutual
+	// right-swipes and create matches in the same request.
+	hSwipe := swipeHandler.NewHandler(s.service, binder)
 
-	//hMatch := matchHandler.NewHandler(s.service.MatchService, binder)
+	// Match CRUD operations use their own focused service.
+	hMatch := matchHandler.NewHandler(matchService.NewService(s.db), binder)
 
 	s.initSwipeRoutes(authUserRouter, hSwipe)
-	//s.initMatchRoutes(authUserRouter, hMatch)
+	s.initMatchRoutes(authUserRouter, hMatch)
 
 	return nil
 }
 
-// initSwipeRoutes регистрирует эндпоинты для свайпов.
-// Файл для расширения: internal/app/domain/handlers/swipe/handler.go
 func (s *Server) initSwipeRoutes(r *gin.RouterGroup, h *swipeHandler.Handler) {
 	swipes := r.Group("/swipes")
 	swipes.POST("/left", h.SwipeLeft)
 	swipes.POST("/right", h.SwipeRight)
 }
 
-// initMatchRoutes регистрирует эндпоинты для матчей.
-// Файл для расширения: internal/app/domain/handlers/match/handler.go
 func (s *Server) initMatchRoutes(r *gin.RouterGroup, h *matchHandler.Handler) {
 	matches := r.Group("/matches")
 	matches.GET("", h.List)

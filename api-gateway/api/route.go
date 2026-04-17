@@ -28,10 +28,10 @@ func (s *Server) initDomainRoutes() {
 	notificationHandler := notification.NewHandler(s.notificationService)
 
 	s.initAuthRoutes(authHandler)
-	s.initUserRoutes(authHandler)
+	//s.initUserRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
-	s.initRoleRoutes(authHandler)
+	//s.initRoleRoutes(authHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -43,12 +43,12 @@ func (s *Server) initAuthRoutes(handler *auth.Handler) {
 	authRoutes.POST("/logout", handler.Logout)
 }
 
-func (s *Server) initUserRoutes(handler *auth.Handler) {
-	userRoutes := mainRouter.Group("/user")
-	userRoutes.POST("/store", handler.CreateUser)
-	userRoutes.DELETE("/delete", handler.DeleteUser)
-	userRoutes.PUT("/update", handler.UpdateUser)
-}
+//func (s *Server) initUserRoutes(handler *auth.Handler) {
+//	userRoutes := mainRouter.Group("/user")
+//	userRoutes.POST("/store", handler.CreateUser)
+//	userRoutes.DELETE("/delete", handler.DeleteUser)
+//	userRoutes.PUT("/update", handler.UpdateUser)
+//}
 
 func (s *Server) initPasswordRoutes(handler *auth.Handler) {
 	passwordRoutes := mainRouter.Group("/password")
@@ -64,9 +64,10 @@ func (s *Server) initNotificationRoutes(handler *notification.Handler) {
 	notificationRoutes.DELETE("/:id", handler.Delete)
 }
 
-func (s *Server) initRoleRoutes(handler *auth.Handler) {
-	roleRoutes := mainRouter.Group("/roles")
-	roleRoutes.POST("", handler.StoreRole)
-	roleRoutes.PUT("/:id", handler.UpdateRole)
-	roleRoutes.DELETE("/:id", handler.DeleteRole)
-}
+//
+//func (s *Server) initRoleRoutes(handler *auth.Handler) {
+//	roleRoutes := mainRouter.Group("/roles")
+//	roleRoutes.POST("", handler.StoreRole)
+//	roleRoutes.PUT("/:id", handler.UpdateRole)
+//	roleRoutes.DELETE("/:id", handler.DeleteRole)
+//}

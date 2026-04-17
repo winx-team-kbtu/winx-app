@@ -28,6 +28,7 @@ kafka:
   topics:
     user_registered: user.registered
     user_password: user.password
+    match_created: match.created
 
 oauth:
   access_token_exp: 60

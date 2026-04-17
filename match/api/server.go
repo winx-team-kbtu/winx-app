@@ -13,6 +13,7 @@ import (
 	"winx-match/internal/app/core/http/middleware"
 	eventdto "winx-match/internal/app/domain/core/dto/services/event"
 	service "winx-match/internal/app/domain/services/general"
+	"winx-match/internal/app/models/models"
 	"winx-match/pkg/cache"
 	"winx-match/pkg/graylog/logger"
 	"winx-match/pkg/kafka"
@@ -26,23 +27,40 @@ import (
 )
 
 type Server struct {
-	db          *gorm.DB
-	rdb         *redis.Client
-	cache       cache.Cache
-	validator   *validation.Validator
-	service     service.Service
-	readers     []*kafka.Consumer
-	matchWriter kafka.Producer
-	httpServer  *apphttp.Server
-	groupID     string
-	brokers     []string
-	topics      kafkaTopics
+	db         *gorm.DB
+	rdb        *redis.Client
+	cache      cache.Cache
+	validator  *validation.Validator
+	service    service.Service
+	readers    []*kafka.Consumer
+	httpServer *apphttp.Server
+	groupID    string
+	brokers    []string
+	topics     kafkaTopics
 }
 
 type kafkaTopics struct {
 	swipeLeft    string
 	swipeRight   string
 	matchCreated string
+}
+
+type kafkaMatchPublisher struct {
+	producer *kafka.Producer
+	topic    string
+}
+
+func (p *kafkaMatchPublisher) Publish(ctx context.Context, match models.Match) error {
+	payload, err := json.Marshal(eventdto.MatchCreatedDTO{
+		MatchID:   match.ID,
+		UserOneID: match.UserOneID,
+		UserTwoID: match.UserTwoID,
+		CreatedAt: match.CreatedAt,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal match event: %w", err)
+	}
+	return p.producer.Publish(ctx, p.topic, "", payload)
 }
 
 var handler *gin.Engine
@@ -86,7 +104,16 @@ func newServer() (*Server, error) {
 		},
 	}
 
-	s.service = service.NewService(db)
+	matchProducer, err := kafka.NewProducer(s.brokers)
+	if err != nil {
+		return nil, fmt.Errorf("create match kafka producer: %w", err)
+	}
+	publisher := &kafkaMatchPublisher{
+		producer: matchProducer,
+		topic:    s.topics.matchCreated,
+	}
+
+	s.service = service.NewService(db, s.cache, publisher)
 
 	if err := s.initRoutes(); err != nil {
 		return nil, fmt.Errorf("init routes: %w", err)
@@ -112,12 +139,6 @@ func (s *Server) run(ctx context.Context) error {
 	if err := s.startConsumer(ctx, s.topics.swipeRight, s.handleSwipeRight, errCh); err != nil {
 		return err
 	}
-
-	producer, err := s.startProducer(s.topics.matchCreated)
-	if err != nil {
-		return err
-	}
-	defer producer.Close()
 
 	logger.Log.Infof(
 		"match listeners started for topics: %s, %s",
@@ -194,17 +215,6 @@ func (s *Server) startConsumer(
 	return nil
 }
 
-func (s *Server) startProducer(
-	topic string,
-) (*kafka.Producer, error) {
-	producer, err := kafka.NewProducer(s.brokers)
-	if err != nil {
-		return nil, fmt.Errorf("create kafka producer for %s: %w", topic, err)
-	}
-
-	return producer, nil
-}
-
 // -----------------------------------------------------------------------
 // Kafka event handlers
 // Чтобы добавить новый топик:
@@ -237,34 +247,8 @@ func (s *Server) handleSwipeRight(ctx context.Context, payload []byte) error {
 
 	logger.Log.Infof("swipe.right: user %d swiped right on %d", event.SwiperID, event.SwipedID)
 
-	match, created, err := s.service.HandleSwipeRight(ctx, event.SwiperID, event.SwipedID)
-	if err != nil {
+	if _, _, err := s.service.HandleSwipeRight(ctx, event.SwiperID, event.SwipedID); err != nil {
 		return fmt.Errorf("try create match: %w", err)
-	}
-
-	if created {
-		if err := s.handleCreateMatch(ctx, s.matchWriter, eventdto.MatchCreatedDTO{
-			UserOneID: event.SwiperID,
-			UserTwoID: event.SwipedID,
-			CreatedAt: time.Now(),
-			MatchID:   match.ID,
-		}); err != nil {
-			logger.Log.Errorf("handle create match: %v", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *Server) handleCreateMatch(ctx context.Context, producer kafka.Producer, match eventdto.MatchCreatedDTO) error {
-	payload, err := json.Marshal(match)
-	if err != nil {
-		return fmt.Errorf("marshal match event: %w", err)
-	}
-
-	if err := producer.Publish(ctx, s.topics.matchCreated, "", payload); err != nil {
-		return fmt.Errorf("publish match event: %w", err)
 	}
 
 	return nil

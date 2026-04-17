@@ -8,19 +8,12 @@ import (
 	"winx-match/internal/app/core/helpers/response"
 	"winx-match/internal/app/core/validation"
 	requestdto "winx-match/internal/app/domain/core/dto/requests/swipe"
-	resources "winx-match/internal/app/domain/resources/swipe"
-	service "winx-match/internal/app/domain/services/swipe"
+	matchResource "winx-match/internal/app/domain/resources/match"
+	service "winx-match/internal/app/domain/services/general"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Handler обрабатывает HTTP-запросы для свайпов.
-//
-// Чтобы добавить новый эндпоинт:
-//  1. Добавь метод в Service интерфейс (services/swipe/service.go)
-//  2. Реализуй метод в service struct
-//  3. Добавь метод хендлера здесь
-//  4. Зарегистрируй роут в api/route.go → initSwipeRoutes()
 type Handler struct {
 	service service.Service
 	binder  *validation.Binder
@@ -31,7 +24,6 @@ func NewHandler(svc service.Service, binder *validation.Binder) *Handler {
 }
 
 // SwipeLeft — POST /swipes/left
-// Записывает свайп влево текущего пользователя.
 func (h *Handler) SwipeLeft(ctx *gin.Context) {
 	authUser, err := headercontract.GetAuthUser(ctx.Request.Context())
 	if err != nil {
@@ -45,18 +37,17 @@ func (h *Handler) SwipeLeft(ctx *gin.Context) {
 		return
 	}
 
-	swipe, err := h.service.Create(ctx.Request.Context(), authUser.ID, payload.SwipedID, "left")
-	if err != nil {
+	if err := h.service.HandleSwipeLeft(ctx.Request.Context(), authUser.ID, payload.SwipedID); err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		errorhandler.FailOnError(err, "SwipeLeft service error")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewResource(swipe), response.OK))
+	ctx.JSON(http.StatusOK, response.SuccessResponse(nil, response.OK))
 }
 
 // SwipeRight — POST /swipes/right
-// Записывает свайп вправо и инициирует проверку матча через Kafka (handleSwipeRight в server.go).
+// Returns the created match in the response body when both users swiped right.
 func (h *Handler) SwipeRight(ctx *gin.Context) {
 	authUser, err := headercontract.GetAuthUser(ctx.Request.Context())
 	if err != nil {
@@ -70,12 +61,17 @@ func (h *Handler) SwipeRight(ctx *gin.Context) {
 		return
 	}
 
-	swipe, err := h.service.Create(ctx.Request.Context(), authUser.ID, payload.SwipedID, "right")
+	match, created, err := h.service.HandleSwipeRight(ctx.Request.Context(), authUser.ID, payload.SwipedID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		errorhandler.FailOnError(err, "SwipeRight service error")
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewResource(swipe), response.OK))
+	if created {
+		ctx.JSON(http.StatusOK, response.SuccessResponse(matchResource.NewResource(match), response.OK))
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.SuccessResponse(nil, response.OK))
 }

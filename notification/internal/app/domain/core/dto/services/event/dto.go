@@ -13,3 +13,10 @@ type UserPasswordDTO struct {
 	PinCode   string    `json:"pin_code"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type MatchCreatedDTO struct {
+	MatchID   int64     `json:"match_id"`
+	UserOneID int64     `json:"user_one_id"`
+	UserTwoID int64     `json:"user_two_id"`
+	CreatedAt time.Time `json:"created_at"`
+}

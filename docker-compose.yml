@@ -102,6 +102,28 @@ services:
       - postgres-winx
       - kafka-winx
 
+  recommendation-winx:
+    build:
+      context: ./recommendation
+      dockerfile: ../docker/recommendation/Dockerfile
+      target: dev
+    container_name: recommendation-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./recommendation:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3005:3005"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+
   mongo-winx:
     image: mongo:7
     container_name: mongo-winx
