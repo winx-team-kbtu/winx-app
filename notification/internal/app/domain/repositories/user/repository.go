@@ -1,11 +1,11 @@
 package user
 
 import (
-	dto "winx-notification/internal/app/domain/core/dto/repositories/user"
-	"winx-notification/internal/app/models/models"
 	"context"
 	"errors"
 	"fmt"
+	dto "winx-notification/internal/app/domain/core/dto/repositories/user"
+	"winx-notification/internal/app/models/models"
 
 	"gorm.io/gorm"
 )
@@ -19,6 +19,7 @@ type Repository interface {
 	Delete(ctx context.Context, input dto.DeleteDTO) (bool, error)
 	Update(ctx context.Context, input dto.UpdateDTO) (models.User, error)
 	GetByEmail(ctx context.Context, email string) (models.User, error)
+	GetByID(ctx context.Context, id int64) (models.User, error)
 }
 
 type repository struct {
@@ -89,6 +90,21 @@ func (r *repository) GetByEmail(ctx context.Context, email string) (models.User,
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return models.User{}, ErrNotFound
 		}
+	}
+
+	return user, nil
+}
+
+func (r *repository) GetByID(ctx context.Context, id int64) (models.User, error) {
+	var user models.User
+
+	if err := r.db.WithContext(ctx).
+		Where("id = ?", id).
+		First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return models.User{}, ErrNotFound
+		}
+		return models.User{}, fmt.Errorf("failed to get user by id: %w", err)
 	}
 
 	return user, nil

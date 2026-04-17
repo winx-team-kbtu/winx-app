@@ -13,6 +13,7 @@ import (
 	"winx-notification/internal/app/core/http"
 	"winx-notification/internal/app/core/http/middleware"
 	eventdto "winx-notification/internal/app/domain/core/dto/services/event"
+	userrepo "winx-notification/internal/app/domain/repositories/user"
 	"winx-notification/internal/app/notifications"
 	"winx-notification/pkg/cache"
 	"winx-notification/pkg/email"
@@ -35,6 +36,7 @@ type Server struct {
 	validator  *validation.Validator
 	mailer     *email.SMTPMailer
 	store      *notifications.Store
+	userRepo   userrepo.Repository
 	readers    []*kafka.Consumer
 	httpServer *http.Server
 	groupID    string
@@ -45,6 +47,7 @@ type Server struct {
 type kafkaTopics struct {
 	userRegistered string
 	userPassword   string
+	matchCreated   string
 }
 
 var handler *gin.Engine
@@ -91,9 +94,11 @@ func newServer() (*Server, error) {
 		topics: kafkaTopics{
 			userRegistered: configs.Config.Kafka.Topics.UserRegistered,
 			userPassword:   configs.Config.Kafka.Topics.UserPassword,
+			matchCreated:   configs.Config.Kafka.Topics.MatchCreated,
 		},
 	}
 	s.store = notifications.NewStore(db)
+	s.userRepo = userrepo.NewRepository(db)
 
 	if err := s.initRoutes(); err != nil {
 		return nil, fmt.Errorf("init routes: %w", err)
@@ -116,13 +121,17 @@ func (s *Server) run(ctx context.Context) error {
 	if err := s.startConsumer(ctx, s.topics.userPassword, s.handleUserPassword, errCh); err != nil {
 		return err
 	}
+	if err := s.startConsumer(ctx, s.topics.matchCreated, s.handleMatchCreated, errCh); err != nil {
+		return err
+	}
 
 	go s.runDeliveryLoop(ctx)
 
 	logger.Log.Infof(
-		"notification listeners started for topics: %s, %s",
+		"notification listeners started for topics: %s, %s, %s",
 		s.topics.userRegistered,
 		s.topics.userPassword,
+		s.topics.matchCreated,
 	)
 
 	select {
@@ -256,6 +265,48 @@ func (s *Server) handleUserPassword(ctx context.Context, payload []byte) error {
 	}
 
 	logger.Log.Infof("password reset notification queued for %s", event.Email)
+	return nil
+}
+
+func (s *Server) handleMatchCreated(ctx context.Context, payload []byte) error {
+	var event eventdto.MatchCreatedDTO
+	if err := json.Unmarshal(payload, &event); err != nil {
+		return fmt.Errorf("decode match created event: %w", err)
+	}
+
+	data, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("marshal match payload: %w", err)
+	}
+
+	for _, userID := range []int64{event.UserOneID, event.UserTwoID} {
+		user, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			logger.Log.Errorf("match notification: get user %d: %v", userID, err)
+			continue
+		}
+
+		subject := "You have a new match on Winx!"
+		body := fmt.Sprintf(
+			"Hi,\n\nGreat news — you have a new match! Head to the app to start chatting.\n\nMatched at: %s\n\nThanks,\n%s",
+			event.CreatedAt.Format("2006-01-02 15:04:05"),
+			s.mailer.FromName(),
+		)
+
+		if _, err := s.store.Create(ctx, notifications.CreateInput{
+			TypeCode:  notifications.TypeMatch,
+			Recipient: user.Email,
+			Subject:   subject,
+			Body:      body,
+			Payload:   datatypes.JSON(data),
+		}); err != nil {
+			logger.Log.Errorf("store match notification for user %d: %v", userID, err)
+			continue
+		}
+
+		logger.Log.Infof("match notification queued for user %d (%s)", userID, user.Email)
+	}
+
 	return nil
 }
 

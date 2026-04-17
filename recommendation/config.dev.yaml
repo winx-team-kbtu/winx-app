@@ -1,0 +1,35 @@
+app:
+  name: recommendation
+  environment: development
+  url: 0.0.0.0:3005
+  key: winx-key
+
+db:
+  postgres:
+    connection: postgres
+    host: postgres-winx
+    port: 5432
+    database: winx-db
+    username: winx
+    password: winx
+    sslmode: disable
+  mongo:
+    uri: mongodb://mongo-winx:27017
+    database: winx-profile
+
+redis:
+  host: redis-winx
+  password: ""
+  port: "6379"
+
+kafka:
+  brokers:
+    - kafka-winx:9092
+  group_id: recommendation-winx
+  topics:
+    match_created: match.created
+
+graylog:
+  host: 10.10.22.63
+  port: 12201
+  source: recommendation
