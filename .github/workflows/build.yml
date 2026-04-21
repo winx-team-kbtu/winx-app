@@ -44,8 +44,7 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ matrix.service }}:latest
             ${{ env.REGISTRY }}/${{ env.ORG }}/${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.ORG }}/${{ matrix.service }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.ORG }}/${{ matrix.service }}:buildcache,mode=max
+          no-cache: true
 
   deploy:
     name: Deploy to DigitalOcean
