@@ -25,5 +25,6 @@ RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 COPY --from=build /app/main main
 COPY --from=build /app/swagger swagger
+COPY --from=build /app/config.dev.yaml config.dev.yaml
 
 ENTRYPOINT ["/app/main"]
