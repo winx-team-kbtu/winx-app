@@ -27,7 +27,7 @@ ENV TZ=Asia/Almaty
 RUN cp /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 COPY --from=build /app/main main
-COPY --from=build /app/config.dev.yaml config.yaml
+COPY --from=build /app/config.dev.yaml config.dev.yaml
 COPY --from=build /app/migrate migrate
 COPY --from=build /app/seed seed
 
