@@ -1,0 +1,30 @@
+### Check token validity
+POST {{gateway_url}}/api/v1/check
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+### Refresh token
+POST {{gateway_url}}/api/v1/refresh
+Content-Type: application/json
+
+{
+  "refresh_token": "{{refresh_token}}"
+}
+
+> {%
+    client.test("Token refreshed", function () {
+        client.assert(response.status === 200, "Expected 200");
+        var data = response.body.data;
+        if (data && data.access_token) {
+            client.global.set("access_token", data.access_token);
+        }
+        if (data && data.refresh_token) {
+            client.global.set("refresh_token", data.refresh_token);
+        }
+    });
+%}
+
+### Logout
+POST {{gateway_url}}/api/v1/logout
+Content-Type: application/json
+Authorization: Bearer {{access_token}}

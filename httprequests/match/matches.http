@@ -1,0 +1,11 @@
+### List my matches
+GET {{gateway_url}}/api/v1/matches?limit=20&offset=0
+Authorization: Bearer {{access_token}}
+
+### List matches (second user)
+GET {{gateway_url}}/api/v1/matches?limit=20&offset=0
+Authorization: Bearer {{second_access_token}}
+
+### Delete match by ID
+DELETE {{gateway_url}}/api/v1/matches/1
+Authorization: Bearer {{access_token}}

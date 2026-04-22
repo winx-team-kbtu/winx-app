@@ -1,0 +1,7 @@
+### List all available interests
+GET {{gateway_url}}/api/v1/profile/interests
+Authorization: Bearer {{access_token}}
+
+### Lookup location by IP
+GET {{gateway_url}}/api/v1/profile/location/ip
+Authorization: Bearer {{access_token}}

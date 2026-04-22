@@ -1,0 +1,7 @@
+### Get recommendations
+GET {{gateway_url}}/api/v1/recommendations?limit=10&offset=0
+Authorization: Bearer {{access_token}}
+
+### Get recommendations (second user)
+GET {{gateway_url}}/api/v1/recommendations?limit=10&offset=0
+Authorization: Bearer {{second_access_token}}

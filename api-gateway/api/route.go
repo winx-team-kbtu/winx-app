@@ -2,6 +2,7 @@ package api
 
 import (
 	"winx-api-gateway/internal/app/modules/auth"
+	"winx-api-gateway/internal/app/modules/chat"
 	"winx-api-gateway/internal/app/modules/match"
 	notification "winx-api-gateway/internal/app/modules/notification"
 	"winx-api-gateway/internal/app/modules/profile"
@@ -32,6 +33,7 @@ func (s *Server) initDomainRoutes() {
 	profileHandler := profile.NewHandler(s.profileService)
 	matchHandler := match.NewHandler(s.matchService)
 	recommendationHandler := recommendation.NewHandler(s.recommendationService)
+	chatHandler := chat.NewHandler(s.chatService)
 
 	s.initAuthRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
@@ -39,6 +41,7 @@ func (s *Server) initDomainRoutes() {
 	s.initProfileRoutes(profileHandler)
 	s.initMatchRoutes(matchHandler)
 	s.initRecommendationRoutes(recommendationHandler)
+	s.initChatRoutes(chatHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -87,4 +90,10 @@ func (s *Server) initMatchRoutes(handler *match.Handler) {
 func (s *Server) initRecommendationRoutes(handler *recommendation.Handler) {
 	recRoutes := mainRouter.Group("/recommendations")
 	recRoutes.GET("", handler.List)
+}
+
+func (s *Server) initChatRoutes(handler *chat.Handler) {
+	chatRoutes := mainRouter.Group("/chats")
+	chatRoutes.GET("", handler.List)
+	chatRoutes.GET("/:id/messages", handler.Messages)
 }

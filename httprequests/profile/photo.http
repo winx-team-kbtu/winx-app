@@ -1,0 +1,12 @@
+### Get my photos
+GET {{gateway_url}}/api/v1/profile/photo
+Authorization: Bearer {{access_token}}
+
+### Upload photo
+POST {{gateway_url}}/api/v1/profile/photo/store
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "photo": "BASE64_ENCODED_IMAGE_DATA_HERE"
+}

@@ -1,0 +1,146 @@
+### ===================================================================
+### END-TO-END FLOW: Register → Login → Profile → Match → Chat
+### Run requests sequentially from top to bottom.
+### ===================================================================
+
+### Step 1: Register first user
+POST {{gateway_url}}/api/v1/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### Step 2: Register second user
+POST {{gateway_url}}/api/v1/register
+Content-Type: application/json
+
+{
+  "email": "{{second_email}}",
+  "password": "{{second_password}}"
+}
+
+### Step 3: Login first user
+POST {{gateway_url}}/api/v1/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("access_token", response.body.data.access_token);
+    client.global.set("refresh_token", response.body.data.refresh_token);
+%}
+
+### Step 4: Login second user
+POST {{gateway_url}}/api/v1/login
+Content-Type: application/json
+
+{
+  "email": "{{second_email}}",
+  "password": "{{second_password}}"
+}
+
+> {%
+    client.global.set("second_access_token", response.body.data.access_token);
+%}
+
+### Step 5: Fill first user's profile
+POST {{gateway_url}}/api/v1/profile/store
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "first_name": "Alex",
+  "birth_date": "1998-03-10",
+  "gender": "man",
+  "show_gender": true,
+  "show_age": true,
+  "about_me": "Software dev who loves hiking",
+  "interested_in": ["woman"],
+  "looking_for": "long_term_partner",
+  "location": {
+    "city": "Almaty",
+    "country": "Kazakhstan",
+    "current_location": {
+      "latitude": 43.2220,
+      "longitude": 76.8512
+    }
+  }
+}
+
+### Step 6: Fill second user's profile
+POST {{gateway_url}}/api/v1/profile/store
+Content-Type: application/json
+Authorization: Bearer {{second_access_token}}
+
+{
+  "first_name": "Dana",
+  "birth_date": "1999-07-22",
+  "gender": "woman",
+  "show_gender": true,
+  "show_age": true,
+  "about_me": "Designer & coffee enthusiast",
+  "interested_in": ["man"],
+  "looking_for": "long_term_partner",
+  "location": {
+    "city": "Almaty",
+    "country": "Kazakhstan",
+    "current_location": {
+      "latitude": 43.2380,
+      "longitude": 76.9450
+    }
+  }
+}
+
+### Step 7: Get recommendations for first user
+GET {{gateway_url}}/api/v1/recommendations?limit=10&offset=0
+Authorization: Bearer {{access_token}}
+
+### Step 8: First user swipes right on second user
+POST {{gateway_url}}/api/v1/swipes/right
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "swiped_id": 2
+}
+
+### Step 9: Second user swipes right on first user → MATCH CREATED!
+POST {{gateway_url}}/api/v1/swipes/right
+Content-Type: application/json
+Authorization: Bearer {{second_access_token}}
+
+{
+  "swiped_id": 1
+}
+
+### Step 10: Check matches (should show the new match)
+GET {{gateway_url}}/api/v1/matches?limit=20&offset=0
+Authorization: Bearer {{access_token}}
+
+### Step 11: Check chats (auto-created from match via Kafka)
+# Note: there may be a short delay while Kafka processes the event
+GET {{gateway_url}}/api/v1/chats?limit=20&offset=0
+Authorization: Bearer {{access_token}}
+
+### Step 12: Get chat messages (should be empty initially)
+# Replace 1 with the actual chat ID from Step 11
+GET {{gateway_url}}/api/v1/chats/1/messages?limit=50&offset=0
+Authorization: Bearer {{access_token}}
+
+### Step 13: Connect to WebSocket and send messages
+# Open WebSocket connection:
+#   ws://localhost:3006/ws?token={{access_token}}
+#
+# Send:
+#   {"chat_id": 1, "content": "Hey Dana! Nice to match with you!"}
+#
+# Then check messages again via REST to confirm persistence.
+
+### Step 14: Verify messages were saved
+GET {{gateway_url}}/api/v1/chats/1/messages?limit=50&offset=0
+Authorization: Bearer {{access_token}}
