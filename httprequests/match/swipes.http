@@ -1,0 +1,28 @@
+### Swipe right on second user (first user swipes)
+# Note: replace swiped_id with the actual user ID of the second user
+POST {{gateway_url}}/api/v1/swipes/right
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "swiped_id": 2
+}
+
+### Swipe right on first user (second user swipes) — creates match!
+# Note: replace swiped_id with the actual user ID of the first user
+POST {{gateway_url}}/api/v1/swipes/right
+Content-Type: application/json
+Authorization: Bearer {{second_access_token}}
+
+{
+  "swiped_id": 1
+}
+
+### Swipe left example
+POST {{gateway_url}}/api/v1/swipes/left
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "swiped_id": 99
+}

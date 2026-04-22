@@ -12,6 +12,7 @@ import (
 	"winx-api-gateway/internal/app/core/http"
 	"winx-api-gateway/internal/app/core/logger"
 	"winx-api-gateway/internal/app/modules/auth"
+	"winx-api-gateway/internal/app/modules/chat"
 	"winx-api-gateway/internal/app/modules/match"
 	notification "winx-api-gateway/internal/app/modules/notification"
 	"winx-api-gateway/internal/app/modules/profile"
@@ -28,6 +29,7 @@ type Server struct {
 	profileService        profile.Service
 	matchService          match.Service
 	recommendationService recommendation.Service
+	chatService           chat.Service
 }
 
 var handler *gin.Engine
@@ -115,6 +117,14 @@ func (s *Server) initLayers(_ context.Context) error {
 	)
 	s.recommendationService = recommendation.NewService(recommendationClient)
 	logger.Info("Recommendation service client initialized (URL: %s)", configs.Config.Services.Recommendation.URL)
+
+	chatClient := chat.NewClient(
+		configs.Config.Services.Chat.URL,
+		configs.Config.Services.Chat.APIKey,
+		15*time.Second,
+	)
+	s.chatService = chat.NewService(chatClient)
+	logger.Info("Chat service client initialized (URL: %s)", configs.Config.Services.Chat.URL)
 
 	logger.Debug("Initializing routes...")
 	return s.initRoutes()

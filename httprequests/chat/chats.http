@@ -1,0 +1,18 @@
+### List my chats
+# Chats are auto-created when a match happens via Kafka event.
+# First create a match (mutual swipe right), then check chats.
+GET {{gateway_url}}/api/v1/chats?limit=20&offset=0
+Authorization: Bearer {{access_token}}
+
+### List chats (second user)
+GET {{gateway_url}}/api/v1/chats?limit=20&offset=0
+Authorization: Bearer {{second_access_token}}
+
+### Get messages in chat
+# Replace 1 with actual chat ID from the list above
+GET {{gateway_url}}/api/v1/chats/1/messages?limit=50&offset=0
+Authorization: Bearer {{access_token}}
+
+### Get messages (second user view)
+GET {{gateway_url}}/api/v1/chats/1/messages?limit=50&offset=0
+Authorization: Bearer {{second_access_token}}

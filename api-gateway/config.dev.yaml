@@ -20,6 +20,9 @@ services:
   recommendation:
     url: http://recommendation-winx:3005
     api_key: winx-key
+  chat:
+    url: http://chat-winx:3006
+    api_key: winx-key
 
 swagger:
   title: Winx API Gateway

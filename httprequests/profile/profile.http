@@ -1,0 +1,66 @@
+### Get my profile
+GET {{gateway_url}}/api/v1/profile/me
+Authorization: Bearer {{access_token}}
+
+### Store / update profile
+POST {{gateway_url}}/api/v1/profile/store
+Content-Type: application/json
+Authorization: Bearer {{access_token}}
+
+{
+  "first_name": "John",
+  "birth_date": "1998-05-15",
+  "gender": "man",
+  "show_gender": true,
+  "show_age": true,
+  "about_me": "I love traveling and outdoor activities",
+  "job_title": "Software Engineer",
+  "company": "Tech Corp",
+  "school": "MIT",
+  "interest_ids": [1, 2, 3],
+  "interested_in": ["woman"],
+  "looking_for": "long_term_partner",
+  "lifestyle": {
+    "smoking": "never",
+    "drinking": "socially"
+  },
+  "preferences": {
+    "age_range": "20-30",
+    "distance": 50
+  },
+  "location": {
+    "city": "Almaty",
+    "country": "Kazakhstan",
+    "current_location": {
+      "latitude": 43.2220,
+      "longitude": 76.8512
+    }
+  }
+}
+
+### Store / update second user's profile
+POST {{gateway_url}}/api/v1/profile/store
+Content-Type: application/json
+Authorization: Bearer {{second_access_token}}
+
+{
+  "first_name": "Jane",
+  "birth_date": "1999-08-20",
+  "gender": "woman",
+  "show_gender": true,
+  "show_age": true,
+  "about_me": "Coffee addict, book lover",
+  "job_title": "Designer",
+  "company": "Design Studio",
+  "interest_ids": [1, 3, 5],
+  "interested_in": ["man"],
+  "looking_for": "long_term_partner",
+  "location": {
+    "city": "Almaty",
+    "country": "Kazakhstan",
+    "current_location": {
+      "latitude": 43.2380,
+      "longitude": 76.9450
+    }
+  }
+}

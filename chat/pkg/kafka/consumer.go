@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"winx-match/pkg/graylog/logger"
+	"winx-chat/pkg/graylog/logger"
 
 	kafkago "github.com/segmentio/kafka-go"
 )

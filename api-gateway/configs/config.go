@@ -30,6 +30,7 @@ type (
 		Profile        service `yaml:"profile"`
 		Match          service `yaml:"match"`
 		Recommendation service `yaml:"recommendation"`
+		Chat           service `yaml:"chat"`
 	}
 
 	service struct {
@@ -88,6 +89,10 @@ func InitConfig() {
 			Recommendation: service{
 				URL:    viper.GetString("services.recommendation.url"),
 				APIKey: viper.GetString("services.recommendation.api_key"),
+			},
+			Chat: service{
+				URL:    viper.GetString("services.chat.url"),
+				APIKey: viper.GetString("services.chat.api_key"),
 			},
 		},
 		Swagger: swagger{

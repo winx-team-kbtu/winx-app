@@ -1,0 +1,7 @@
+### List my notifications
+GET {{gateway_url}}/api/v1/notifications
+Authorization: Bearer {{access_token}}
+
+### Delete notification by ID
+DELETE {{gateway_url}}/api/v1/notifications/1
+Authorization: Bearer {{access_token}}
