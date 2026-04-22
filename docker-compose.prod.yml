@@ -8,6 +8,9 @@ services:
     depends_on:
       - auth-winx
       - notification-winx
+      - profile-winx
+      - match-winx
+      - recommendation-winx
 
   auth-winx:
     image: ghcr.io/winx-team-kbtu/auth:latest

@@ -12,7 +12,10 @@ import (
 	"winx-api-gateway/internal/app/core/http"
 	"winx-api-gateway/internal/app/core/logger"
 	"winx-api-gateway/internal/app/modules/auth"
+	"winx-api-gateway/internal/app/modules/match"
 	notification "winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/profile"
+	"winx-api-gateway/internal/app/modules/recommendation"
 	"winx-api-gateway/internal/app/swagger"
 
 	"github.com/gin-contrib/cors"
@@ -20,8 +23,11 @@ import (
 )
 
 type Server struct {
-	authService         auth.Service
-	notificationService notification.Service
+	authService           auth.Service
+	notificationService   notification.Service
+	profileService        profile.Service
+	matchService          match.Service
+	recommendationService recommendation.Service
 }
 
 var handler *gin.Engine
@@ -85,6 +91,30 @@ func (s *Server) initLayers(_ context.Context) error {
 	)
 	s.notificationService = notification.NewService(notificationClient)
 	logger.Info("Notification service client initialized (URL: %s)", configs.Config.Services.Notification.URL)
+
+	profileClient := profile.NewClient(
+		configs.Config.Services.Profile.URL,
+		configs.Config.Services.Profile.APIKey,
+		15*time.Second,
+	)
+	s.profileService = profile.NewService(profileClient)
+	logger.Info("Profile service client initialized (URL: %s)", configs.Config.Services.Profile.URL)
+
+	matchClient := match.NewClient(
+		configs.Config.Services.Match.URL,
+		configs.Config.Services.Match.APIKey,
+		15*time.Second,
+	)
+	s.matchService = match.NewService(matchClient)
+	logger.Info("Match service client initialized (URL: %s)", configs.Config.Services.Match.URL)
+
+	recommendationClient := recommendation.NewClient(
+		configs.Config.Services.Recommendation.URL,
+		configs.Config.Services.Recommendation.APIKey,
+		15*time.Second,
+	)
+	s.recommendationService = recommendation.NewService(recommendationClient)
+	logger.Info("Recommendation service client initialized (URL: %s)", configs.Config.Services.Recommendation.URL)
 
 	logger.Debug("Initializing routes...")
 	return s.initRoutes()
