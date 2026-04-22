@@ -25,6 +25,7 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   notification-winx:
     image: ghcr.io/winx-team-kbtu/notification:latest
@@ -42,6 +43,7 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   profile-winx:
     image: ghcr.io/winx-team-kbtu/profile:latest
@@ -60,6 +62,7 @@ services:
       - mongo-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   match-winx:
     image: ghcr.io/winx-team-kbtu/match:latest
@@ -76,6 +79,7 @@ services:
     depends_on:
       - postgres-winx
       - kafka-winx
+      - graylog-winx
 
   recommendation-winx:
     image: ghcr.io/winx-team-kbtu/recommendation:latest
@@ -93,6 +97,44 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
+
+  opensearch-winx:
+    image: opensearchproject/opensearch:2.12.0
+    container_name: opensearch-winx
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+
+  graylog-winx:
+    image: graylog/graylog:6.0
+    container_name: graylog-winx
+    restart: unless-stopped
+    environment:
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_PASSWORD_SECRET: ${GRAYLOG_PASSWORD_SECRET}
+      GRAYLOG_ROOT_PASSWORD_SHA2: ${GRAYLOG_ROOT_PASSWORD_SHA2}
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_HTTP_EXTERNAL_URI: ${GRAYLOG_EXTERNAL_URI:-http://localhost:9000/}
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch-winx:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongo-winx:27017/graylog
+    entrypoint: /usr/bin/tini -- wait-for-it opensearch-winx:9200 -- /docker-entrypoint.sh
+    ports:
+      - "9000:9000"
+      - "12201:12201/tcp"
+    depends_on:
+      - mongo-winx
+      - opensearch-winx
 
   mongo-winx:
     image: mongo:7
@@ -151,6 +193,8 @@ services:
       - redis_data:/data
 
 volumes:
+  opensearch_data:
+    name: winx-opensearch-data
   mongo_data:
     name: winx-mongo-data
   postgres_data:

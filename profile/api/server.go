@@ -166,6 +166,7 @@ func router() *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	r.Use(middleware.RequestLogger())
 	r.Use(middleware.RecoveryWithLogger())
 
 	return r
