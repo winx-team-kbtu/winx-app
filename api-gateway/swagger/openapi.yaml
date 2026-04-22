@@ -3,10 +3,11 @@ info:
   title: Winx API Gateway
   version: 1.0.0
   description: |
-    API gateway entrypoint for Winx services.
-    This spec currently documents one example endpoint implemented through the gateway.
+    API gateway entrypoint for all Winx microservices.
+    All requests go through `POST /api/v1/login` first to obtain a Bearer token,
+    then pass it as `Authorization: Bearer <token>` on protected endpoints.
 servers:
-  - url: http://localhost:3000
+  - url: /
 paths:
   /healthz:
     get:
@@ -16,12 +17,24 @@ paths:
       responses:
         '200':
           description: Gateway is healthy
-  /api/v1/auth/login:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: ok
+
+  # ─── Auth ────────────────────────────────────────────────────────────────────
+
+  /api/v1/login:
     post:
-      summary: Login user through auth service
-      description: Proxies the login request to the auth service.
-      tags:
-        - Auth
+      summary: Login
+      tags: [Auth]
       requestBody:
         required: true
         content:
@@ -36,20 +49,17 @@ paths:
               schema:
                 $ref: '#/components/schemas/LoginSuccessResponse'
         '404':
-          description: Login failed
+          description: Invalid credentials
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: Gateway could not reach auth service
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /api/v1/auth/register:
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/register:
     post:
-      summary: Register user through auth service
+      summary: Register
       tags: [Auth]
       requestBody:
         required: true
@@ -60,13 +70,16 @@ paths:
       responses:
         '200':
           description: Successful registration
-        '502':
-          description: Gateway could not reach auth service
+        '422':
+          description: Validation error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /api/v1/auth/refresh:
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/refresh:
     post:
       summary: Refresh access token
       tags: [Auth]
@@ -76,28 +89,41 @@ paths:
           application/json:
             schema:
               type: object
+              required: [refresh_token]
               properties:
                 refresh_token:
                   type: string
       responses:
         '200':
-          description: Token refreshed
+          description: New access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginSuccessResponse'
         '502':
-          description: Gateway could not reach auth service
-  /api/v1/auth/check:
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/check:
     post:
-      summary: Check bearer token
+      summary: Validate Bearer token
       tags: [Auth]
       security:
         - bearerAuth: []
       responses:
         '200':
           description: Token is valid
+        '401':
+          description: Token is invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: Gateway could not reach auth service
-  /api/v1/auth/logout:
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/logout:
     post:
-      summary: Logout current user
+      summary: Logout
       tags: [Auth]
       security:
         - bearerAuth: []
@@ -105,7 +131,10 @@ paths:
         '200':
           description: Successful logout
         '502':
-          description: Gateway could not reach auth service
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Password ─────────────────────────────────────────────────────────────────
+
   /api/v1/password/forgot:
     post:
       summary: Request password reset PIN
@@ -116,47 +145,17 @@ paths:
           application/json:
             schema:
               type: object
+              required: [email]
               properties:
                 email:
                   type: string
                   format: email
       responses:
         '200':
-          description: Reset flow started
+          description: Reset PIN sent to email
         '502':
-          description: Gateway could not reach auth service
-  /api/v1/password/reset:
-    post:
-      summary: Reset password
-      tags: [Password]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Password reset
-        '502':
-          description: Gateway could not reach auth service
-  /api/v1/password/change:
-    post:
-      summary: Change password
-      tags: [Password]
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        '200':
-          description: Password changed
-        '502':
-          description: Gateway could not reach auth service
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/v1/password/verify-pin:
     post:
       summary: Verify reset PIN
@@ -167,25 +166,389 @@ paths:
           application/json:
             schema:
               type: object
+              required: [email, pin]
+              properties:
+                email:
+                  type: string
+                  format: email
+                pin:
+                  type: string
       responses:
         '200':
-          description: PIN verified
+          description: PIN is valid
+        '400':
+          description: Invalid PIN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '502':
-          description: Gateway could not reach auth service
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/password/reset:
+    post:
+      summary: Reset password with PIN
+      tags: [Password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, pin, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                pin:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Password reset successful
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/password/change:
+    post:
+      summary: Change password (authenticated)
+      tags: [Password]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: Password changed
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Profile ──────────────────────────────────────────────────────────────────
+
+  /api/v1/profile/me:
+    get:
+      summary: Get my profile
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/profile/store:
+    post:
+      summary: Create or update my profile
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                birth_date:
+                  type: string
+                  format: date
+                  example: '2000-01-15'
+                gender:
+                  type: string
+                  enum: [male, female, other]
+                bio:
+                  type: string
+                interests:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '201':
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/profile/photo:
+    get:
+      summary: Get my photos
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Photo list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/profile/photo/store:
+    post:
+      summary: Upload profile photo
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Photo updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '201':
+          description: Photo created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid or missing photo file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/profile/interests:
+    get:
+      summary: List available interests
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Interests list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/profile/location/ip:
+    get:
+      summary: Lookup location by IP address
+      tags: [Profile]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Location data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Recommendations ──────────────────────────────────────────────────────────
+
+  /api/v1/recommendations:
+    get:
+      summary: Get personalized profile recommendations
+      tags: [Recommendations]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of recommended profiles to swipe on
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Swipes ───────────────────────────────────────────────────────────────────
+
+  /api/v1/swipes/left:
+    post:
+      summary: Swipe left (pass)
+      tags: [Swipes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_user_id]
+              properties:
+                target_user_id:
+                  type: integer
+      responses:
+        '200':
+          description: Swipe recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/swipes/right:
+    post:
+      summary: Swipe right (like)
+      description: If the other user already swiped right on you, a match is created.
+      tags: [Swipes]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_user_id]
+              properties:
+                target_user_id:
+                  type: integer
+      responses:
+        '200':
+          description: Swipe recorded (no match yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '201':
+          description: Match created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Matches ──────────────────────────────────────────────────────────────────
+
+  /api/v1/matches:
+    get:
+      summary: List my matches
+      tags: [Matches]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Matches list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/matches/{id}:
+    delete:
+      summary: Unmatch (delete a match)
+      tags: [Matches]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Match deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Notifications ────────────────────────────────────────────────────────────
+
   /api/v1/notifications:
     get:
-      summary: Get current user notifications
+      summary: List my notifications
       tags: [Notifications]
       security:
         - bearerAuth: []
       responses:
         '200':
           description: Notifications list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '502':
-          description: Gateway could not reach notification service
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/v1/notifications/{id}:
     delete:
-      summary: Delete current user notification
+      summary: Delete a notification
       tags: [Notifications]
       security:
         - bearerAuth: []
@@ -198,19 +561,35 @@ paths:
       responses:
         '200':
           description: Notification deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '502':
-          description: Gateway could not reach notification service
+          $ref: '#/components/responses/ServiceUnavailable'
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid Bearer token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ServiceUnavailable:
+      description: Gateway could not reach the upstream service
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
   schemas:
     LoginRequest:
       type: object
-      required:
-        - email
-        - password
+      required: [email, password]
       properties:
         email:
           type: string
@@ -219,6 +598,7 @@ components:
         password:
           type: string
           example: StrongPassword123!
+
     LoginSuccessResponse:
       type: object
       properties:
@@ -234,17 +614,30 @@ components:
           format: int64
         scope:
           type: string
+
     RegisterRequest:
       type: object
-      required:
-        - email
-        - password
+      required: [email, password]
       properties:
         email:
           type: string
           format: email
+          example: newuser@example.com
         password:
           type: string
+          example: StrongPassword123!
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+        data:
+          nullable: true
+
     ErrorResponse:
       type: object
       properties:

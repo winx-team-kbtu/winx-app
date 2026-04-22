@@ -2,7 +2,10 @@ package api
 
 import (
 	"winx-api-gateway/internal/app/modules/auth"
+	"winx-api-gateway/internal/app/modules/match"
 	notification "winx-api-gateway/internal/app/modules/notification"
+	"winx-api-gateway/internal/app/modules/profile"
+	"winx-api-gateway/internal/app/modules/recommendation"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,12 +29,16 @@ func (s *Server) initDomainRoutes() {
 
 	authHandler := auth.NewHandler(s.authService)
 	notificationHandler := notification.NewHandler(s.notificationService)
+	profileHandler := profile.NewHandler(s.profileService)
+	matchHandler := match.NewHandler(s.matchService)
+	recommendationHandler := recommendation.NewHandler(s.recommendationService)
 
 	s.initAuthRoutes(authHandler)
-	//s.initUserRoutes(authHandler)
 	s.initPasswordRoutes(authHandler)
 	s.initNotificationRoutes(notificationHandler)
-	//s.initRoleRoutes(authHandler)
+	s.initProfileRoutes(profileHandler)
+	s.initMatchRoutes(matchHandler)
+	s.initRecommendationRoutes(recommendationHandler)
 }
 
 func (s *Server) initAuthRoutes(handler *auth.Handler) {
@@ -42,13 +49,6 @@ func (s *Server) initAuthRoutes(handler *auth.Handler) {
 	authRoutes.POST("/check", handler.Check)
 	authRoutes.POST("/logout", handler.Logout)
 }
-
-//func (s *Server) initUserRoutes(handler *auth.Handler) {
-//	userRoutes := mainRouter.Group("/user")
-//	userRoutes.POST("/store", handler.CreateUser)
-//	userRoutes.DELETE("/delete", handler.DeleteUser)
-//	userRoutes.PUT("/update", handler.UpdateUser)
-//}
 
 func (s *Server) initPasswordRoutes(handler *auth.Handler) {
 	passwordRoutes := mainRouter.Group("/password")
@@ -64,10 +64,27 @@ func (s *Server) initNotificationRoutes(handler *notification.Handler) {
 	notificationRoutes.DELETE("/:id", handler.Delete)
 }
 
-//
-//func (s *Server) initRoleRoutes(handler *auth.Handler) {
-//	roleRoutes := mainRouter.Group("/roles")
-//	roleRoutes.POST("", handler.StoreRole)
-//	roleRoutes.PUT("/:id", handler.UpdateRole)
-//	roleRoutes.DELETE("/:id", handler.DeleteRole)
-//}
+func (s *Server) initProfileRoutes(handler *profile.Handler) {
+	profileRoutes := mainRouter.Group("/profile")
+	profileRoutes.GET("/me", handler.GetMe)
+	profileRoutes.POST("/store", handler.Store)
+	profileRoutes.GET("/photo", handler.GetPhotos)
+	profileRoutes.POST("/photo/store", handler.StorePhoto)
+	profileRoutes.GET("/interests", handler.ListInterests)
+	profileRoutes.GET("/location/ip", handler.LookupLocationByIP)
+}
+
+func (s *Server) initMatchRoutes(handler *match.Handler) {
+	swipeRoutes := mainRouter.Group("/swipes")
+	swipeRoutes.POST("/left", handler.SwipeLeft)
+	swipeRoutes.POST("/right", handler.SwipeRight)
+
+	matchRoutes := mainRouter.Group("/matches")
+	matchRoutes.GET("", handler.List)
+	matchRoutes.DELETE("/:id", handler.Delete)
+}
+
+func (s *Server) initRecommendationRoutes(handler *recommendation.Handler) {
+	recRoutes := mainRouter.Group("/recommendations")
+	recRoutes.GET("", handler.List)
+}
