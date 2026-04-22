@@ -30,6 +30,6 @@ kafka:
     match_created: match.created
 
 graylog:
-  host: 10.10.22.63
+  host: graylog-winx
   port: 12201
   source: recommendation

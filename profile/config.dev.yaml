@@ -53,6 +53,6 @@ smtp:
   from_name: Winx Profile
 
 graylog:
-  host: 10.10.22.63
+  host: graylog-winx
   port: 12201
   source: profile

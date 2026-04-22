@@ -2,7 +2,7 @@ app:
   name: auth
   environment: development
   url: 0.0.0.0:3001
-  key:
+  key: winx-key
 
 db:
   postgres:
@@ -33,6 +33,6 @@ oauth:
   refresh_token_exp: 120
 
 graylog:
-  host: 10.10.22.63
+  host: graylog-winx
   port: 12201
-  source:
+  source: auth

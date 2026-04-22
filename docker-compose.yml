@@ -35,6 +35,7 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   notification-winx:
     build:
@@ -57,6 +58,7 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   profile-winx:
     build:
@@ -80,6 +82,7 @@ services:
       - mongo-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
 
   match-winx:
     build:
@@ -101,6 +104,7 @@ services:
     depends_on:
       - postgres-winx
       - kafka-winx
+      - graylog-winx
 
   recommendation-winx:
     build:
@@ -123,6 +127,43 @@ services:
       - postgres-winx
       - redis-winx
       - kafka-winx
+      - graylog-winx
+
+  opensearch-winx:
+    image: opensearchproject/opensearch:2.12.0
+    container_name: opensearch-winx
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+      bootstrap.memory_lock: "true"
+      discovery.type: single-node
+      plugins.security.disabled: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+
+  graylog-winx:
+    image: graylog/graylog:6.0
+    container_name: graylog-winx
+    environment:
+      GRAYLOG_NODE_ID_FILE: /usr/share/graylog/data/config/node-id
+      GRAYLOG_PASSWORD_SECRET: winx-graylog-secret-key-dev
+      # Default admin password is "winxadmin" — sha256: echo -n winxadmin | sha256sum
+      GRAYLOG_ROOT_PASSWORD_SHA2: c38a2a88546759ed68a8a6eb6859fdd229e6475535b5ddebfe5350087887b050
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_HTTP_EXTERNAL_URI: http://localhost:9000/
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch-winx:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongo-winx:27017/graylog
+    entrypoint: /usr/bin/tini -- wait-for-it opensearch-winx:9200 -- /docker-entrypoint.sh
+    ports:
+      - "9000:9000"
+      - "12201:12201/tcp"
+    depends_on:
+      - mongo-winx
+      - opensearch-winx
 
   mongo-winx:
     image: mongo:7
@@ -177,6 +218,8 @@ services:
       - redis_data:/data
 
 volumes:
+  opensearch_data:
+    name: winx-opensearch-data
   mongo_data:
     name: winx-mongo-data
   postgres_data:
