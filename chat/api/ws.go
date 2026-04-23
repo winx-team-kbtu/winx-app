@@ -42,7 +42,9 @@ func (h *Hub) Register(c *Client) {
 	defer h.mu.Unlock()
 	// Close old connection if the same user reconnects.
 	if old, ok := h.clients[c.userID]; ok {
-		old.conn.Close()
+		if old.conn != nil {
+			old.conn.Close()
+		}
 	}
 	h.clients[c.userID] = c
 }
