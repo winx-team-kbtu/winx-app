@@ -6,14 +6,19 @@ info:
     API gateway entrypoint for all Winx microservices.
     All requests go through `POST /api/v1/login` first to obtain a Bearer token,
     then pass it as `Authorization: Bearer <token>` on protected endpoints.
+
+    **WebSocket (chat):** connects directly to the chat service — not through this gateway.
+    Use `ws://<host>:3006/ws?token=<access_token>`.
 servers:
   - url: /
 paths:
+
+  # ─── System ───────────────────────────────────────────────────────────────────
+
   /healthz:
     get:
       summary: Health check
-      tags:
-        - System
+      tags: [System]
       responses:
         '200':
           description: Gateway is healthy
@@ -113,11 +118,7 @@ paths:
         '200':
           description: Token is valid
         '401':
-          description: Token is invalid or expired
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '502':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -150,6 +151,7 @@ paths:
                 email:
                   type: string
                   format: email
+                  example: user@example.com
       responses:
         '200':
           description: Reset PIN sent to email
@@ -171,8 +173,10 @@ paths:
                 email:
                   type: string
                   format: email
+                  example: user@example.com
                 pin:
                   type: string
+                  example: '1234'
       responses:
         '200':
           description: PIN is valid
@@ -200,10 +204,13 @@ paths:
                 email:
                   type: string
                   format: email
+                  example: user@example.com
                 pin:
                   type: string
+                  example: '1234'
                 password:
                   type: string
+                  example: NewPassword123!
       responses:
         '200':
           description: Password reset successful
@@ -226,11 +233,15 @@ paths:
               properties:
                 old_password:
                   type: string
+                  example: OldPassword123!
                 new_password:
                   type: string
+                  example: NewPassword123!
       responses:
         '200':
           description: Password changed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '502':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -265,23 +276,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                birth_date:
-                  type: string
-                  format: date
-                  example: '2000-01-15'
-                gender:
-                  type: string
-                  enum: [male, female, other]
-                bio:
-                  type: string
-                interests:
-                  type: array
-                  items:
-                    type: integer
+              $ref: '#/components/schemas/ProfileStoreRequest'
       responses:
         '200':
           description: Profile updated
@@ -297,6 +292,12 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '502':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -308,7 +309,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: Photo list
+          description: Photo data
           content:
             application/json:
               schema:
@@ -335,6 +336,7 @@ paths:
                 photo:
                   type: string
                   format: binary
+                  description: Image file (JPEG, PNG, etc.)
       responses:
         '200':
           description: Photo updated
@@ -343,13 +345,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '201':
-          description: Photo created
+          description: Photo uploaded
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: Invalid or missing photo file
+          description: Missing or invalid photo file
           content:
             application/json:
               schema:
@@ -361,7 +363,7 @@ paths:
 
   /api/v1/profile/interests:
     get:
-      summary: List available interests
+      summary: List all available interests
       tags: [Profile]
       security:
         - bearerAuth: []
@@ -379,13 +381,13 @@ paths:
 
   /api/v1/profile/location/ip:
     get:
-      summary: Lookup location by IP address
+      summary: Lookup location by request IP
       tags: [Profile]
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Location data
+          description: Location data (city, country, coordinates)
           content:
             application/json:
               schema:
@@ -403,6 +405,9 @@ paths:
       tags: [Recommendations]
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
       responses:
         '200':
           description: List of recommended profiles to swipe on
@@ -428,11 +433,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [target_user_id]
-              properties:
-                target_user_id:
-                  type: integer
+              $ref: '#/components/schemas/SwipeRequest'
       responses:
         '200':
           description: Swipe recorded
@@ -448,7 +449,7 @@ paths:
   /api/v1/swipes/right:
     post:
       summary: Swipe right (like)
-      description: If the other user already swiped right on you, a match is created.
+      description: If the other user already liked you, a match is created automatically.
       tags: [Swipes]
       security:
         - bearerAuth: []
@@ -457,20 +458,16 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [target_user_id]
-              properties:
-                target_user_id:
-                  type: integer
+              $ref: '#/components/schemas/SwipeRequest'
       responses:
         '200':
-          description: Swipe recorded (no match yet)
+          description: Swipe recorded (no mutual match yet)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '201':
-          description: Match created
+          description: Match created (mutual like)
           content:
             application/json:
               schema:
@@ -488,6 +485,9 @@ paths:
       tags: [Matches]
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
       responses:
         '200':
           description: Matches list
@@ -512,6 +512,8 @@ paths:
           required: true
           schema:
             type: integer
+            format: int64
+          example: 42
       responses:
         '200':
           description: Match deleted
@@ -558,11 +560,83 @@ paths:
           required: true
           schema:
             type: integer
+            format: int64
+          example: 1
       responses:
         '200':
           description: Notification deleted
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Notification not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ─── Chats ────────────────────────────────────────────────────────────────────
+
+  /api/v1/chats:
+    get:
+      summary: List my chats
+      description: Returns all chats the authenticated user is a member of. Chats are created automatically when a match occurs.
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Chat list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  /api/v1/chats/{id}/messages:
+    get:
+      summary: Get message history for a chat
+      tags: [Chat]
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+            format: int64
+          example: 1
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Message list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: You are not a member of this chat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Chat not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '502':
           $ref: '#/components/responses/ServiceUnavailable'
 
@@ -571,6 +645,27 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
+
+  parameters:
+    limit:
+      in: query
+      name: limit
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Number of items to return
+    offset:
+      in: query
+      name: offset
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+      description: Number of items to skip
 
   responses:
     Unauthorized:
@@ -587,6 +682,9 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
 
   schemas:
+
+    # ── Auth ──────────────────────────────────────────────────────────────────
+
     LoginRequest:
       type: object
       required: [email, password]
@@ -597,7 +695,7 @@ components:
           example: user@example.com
         password:
           type: string
-          example: StrongPassword123!
+          example: Password123!
 
     LoginSuccessResponse:
       type: object
@@ -625,7 +723,141 @@ components:
           example: newuser@example.com
         password:
           type: string
-          example: StrongPassword123!
+          example: Password123!
+
+    # ── Profile ───────────────────────────────────────────────────────────────
+
+    ProfileStoreRequest:
+      type: object
+      required: [location]
+      properties:
+        first_name:
+          type: string
+          maxLength: 255
+          example: Arman
+        birth_date:
+          type: string
+          format: date
+          example: '2000-03-15'
+          description: Format YYYY-MM-DD
+        gender:
+          type: string
+          enum: [man, woman, non_binary, other]
+          example: man
+        show_gender:
+          type: boolean
+          example: true
+          description: Whether to show gender on public profile
+        show_age:
+          type: boolean
+          example: true
+          description: Whether to show age on public profile
+        about_me:
+          type: string
+          maxLength: 2000
+          example: Love mountains and good coffee.
+        job_title:
+          type: string
+          maxLength: 255
+          example: Software Engineer
+        company:
+          type: string
+          maxLength: 255
+          example: Winx
+        school:
+          type: string
+          maxLength: 255
+          example: KBTU
+        interest_ids:
+          type: array
+          maxItems: 20
+          items:
+            type: integer
+            format: int64
+          example: [1, 3, 7]
+          description: IDs from GET /api/v1/profile/interests
+        interested_in:
+          type: array
+          maxItems: 4
+          items:
+            type: string
+            enum: [man, woman, non_binary, everyone]
+          example: [woman]
+        looking_for:
+          type: string
+          enum:
+            - long_term_partner
+            - long_term_open_to_short
+            - short_term_open_to_long_term
+            - short_term
+            - new_friends
+            - still_figuring_it_out
+          example: long_term_partner
+        lifestyle:
+          type: object
+          additionalProperties: true
+          example:
+            smoking: never
+            drinking: socially
+            exercise: often
+          description: Free-form lifestyle key-value pairs
+        preferences:
+          type: object
+          additionalProperties: true
+          example:
+            min_age: 22
+            max_age: 30
+            max_distance_km: 50
+          description: Free-form matching preference key-value pairs
+        location:
+          $ref: '#/components/schemas/LocationRequest'
+
+    LocationRequest:
+      type: object
+      required: [city]
+      properties:
+        city:
+          type: string
+          maxLength: 255
+          example: Almaty
+        country:
+          type: string
+          maxLength: 255
+          example: Kazakhstan
+        current_location:
+          $ref: '#/components/schemas/CoordinatesRequest'
+
+    CoordinatesRequest:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          example: 43.222
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          example: 76.851
+
+    # ── Swipes ────────────────────────────────────────────────────────────────
+
+    SwipeRequest:
+      type: object
+      required: [swiped_id]
+      properties:
+        swiped_id:
+          type: integer
+          format: int64
+          minimum: 1
+          example: 42
+          description: ID of the user being swiped on
+
+    # ── Common ────────────────────────────────────────────────────────────────
 
     SuccessResponse:
       type: object
@@ -635,6 +867,7 @@ components:
           example: true
         message:
           type: string
+          example: ok
         data:
           nullable: true
 
@@ -646,5 +879,6 @@ components:
           example: false
         message:
           type: string
+          example: error message
         data:
           nullable: true

@@ -1,0 +1,23 @@
+### Register new user
+POST {{gateway_url}}/api/v1/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.test("Registration successful", function () {
+        client.assert(response.status === 200 || response.status === 201, "Expected 200 or 201");
+    });
+%}
+
+### Register second user (for match/chat testing)
+POST {{gateway_url}}/api/v1/register
+Content-Type: application/json
+
+{
+  "email": "{{second_email}}",
+  "password": "{{second_password}}"
+}

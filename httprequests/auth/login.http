@@ -1,0 +1,40 @@
+### Login user
+POST {{gateway_url}}/api/v1/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.test("Login successful", function () {
+        client.assert(response.status === 200, "Expected 200");
+        var data = response.body.data;
+        if (data && data.access_token) {
+            client.global.set("access_token", data.access_token);
+        }
+        if (data && data.refresh_token) {
+            client.global.set("refresh_token", data.refresh_token);
+        }
+    });
+%}
+
+### Login second user
+POST {{gateway_url}}/api/v1/login
+Content-Type: application/json
+
+{
+  "email": "{{second_email}}",
+  "password": "{{second_password}}"
+}
+
+> {%
+    client.test("Second user login successful", function () {
+        client.assert(response.status === 200, "Expected 200");
+        var data = response.body.data;
+        if (data && data.access_token) {
+            client.global.set("second_access_token", data.access_token);
+        }
+    });
+%}

@@ -1,0 +1,24 @@
+### WebSocket connection (chat service directly, not through gateway)
+# JetBrains HTTP Client supports WebSocket via WEBSOCKET keyword.
+#
+# Connect as first user:
+WEBSOCKET {{chat_ws_url}}/ws?token={{access_token}}
+
+### Send message in chat (after WS connected)
+# Once connected, send JSON messages in this format:
+// {"chat_id": 1, "content": "Hello! How are you?"}
+// {"chat_id": 1, "content": "Nice to match with you!"}
+
+###
+# Server responses come in this format:
+// Message received:
+// {"type": "message", "data": {"id": 1, "chat_id": 1, "sender_id": 1, "content": "Hello!", "created_at": "..."}}
+//
+// Error:
+// {"type": "error", "error": "chat not found"}
+
+### WebSocket connection as second user
+WEBSOCKET {{chat_ws_url}}/ws?token={{second_access_token}}
+
+### Send reply
+// {"chat_id": 1, "content": "Hey! Nice to meet you too!"}

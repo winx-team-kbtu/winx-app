@@ -32,7 +32,7 @@ func NewConsumer(brokers []string, topic, groupID string) (*Consumer, error) {
 			Brokers:     brokers,
 			GroupID:     groupID,
 			Topic:       topic,
-			StartOffset: kafkago.LastOffset,
+			StartOffset: kafkago.FirstOffset,
 		}),
 	}, nil
 }

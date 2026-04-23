@@ -1,0 +1,32 @@
+app:
+  name: chat
+  environment: development
+  url: 0.0.0.0:3006
+  key: winx-key
+
+db:
+  postgres:
+    connection: postgres
+    host: postgres-winx
+    port: 5432
+    database: winx-db
+    username: winx
+    password: winx
+    sslmode: disable
+
+redis:
+  host: redis-winx
+  password: ""
+  port: "6379"
+
+kafka:
+  brokers:
+    - kafka-winx:9092
+  group_id: chat-winx
+  topics:
+    match_created: match.created
+
+graylog:
+  host: graylog-winx
+  port: 12201
+  source: chat

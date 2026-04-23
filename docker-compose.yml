@@ -129,6 +129,29 @@ services:
       - kafka-winx
       - graylog-winx
 
+  chat-winx:
+    build:
+      context: ./chat
+      dockerfile: ../docker/chat/Dockerfile
+      target: dev
+    container_name: chat-winx
+    command: ["air", "-c", "/app/air.toml"]
+    volumes:
+      - ./chat:/app
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: winx-db
+      DB_USER: winx
+      DB_PASSWORD: winx
+    ports:
+      - "3006:3006"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+      - graylog-winx
+
   opensearch-winx:
     image: opensearchproject/opensearch:2.12.0
     container_name: opensearch-winx
