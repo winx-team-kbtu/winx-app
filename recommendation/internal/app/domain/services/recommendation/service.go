@@ -145,9 +145,14 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 			SharedInterests: c.SharedInterests,
 			HasPhoto:        c.HasPhoto,
 			DistanceKM:      distKM,
+			Name:            c.Name,
+			City:            c.City,
+			Country:         c.Country,
+			PhotoURL:        c.PhotoURL,
 			Gender:          meta.Gender,
 			Age:             parseAge(meta.BirthDate),
 			LookingFor:      meta.LookingFor,
+			AboutMe:         meta.AboutMe,
 		})
 	}
 

@@ -14,10 +14,13 @@ type ScoredCandidate struct {
 	SharedInterests int
 	HasPhoto        bool
 	DistanceKM      *float64 // nil when location is unknown
+	Name            string
 	City            string
 	Country         string
+	PhotoURL        string
 	// Enriched from MongoDB
 	Gender     string
 	Age        int
 	LookingFor string
+	AboutMe    string
 }
