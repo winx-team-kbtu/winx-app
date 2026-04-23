@@ -124,7 +124,7 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 		if len(interestedIn) == 0 {
 			interestedIn = myMeta.InterestedIn
 		}
-		if len(interestedIn) > 0 && meta.Gender != "" {
+		if len(interestedIn) > 0 {
 			if !containsString(interestedIn, meta.Gender) {
 				log.Printf("[rec]   skip candidateID=%d gender=%q not in interestedIn=%v", c.UserID, meta.Gender, interestedIn)
 				continue
