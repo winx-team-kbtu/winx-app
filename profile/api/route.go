@@ -14,6 +14,7 @@ import (
 	locationService "winx-profile/internal/app/domain/services/location"
 	photoService "winx-profile/internal/app/domain/services/photo"
 	profileService "winx-profile/internal/app/domain/services/profile"
+	"winx-profile/pkg/cache"
 	"winx-profile/pkg/geoip"
 
 	"github.com/gin-gonic/gin"
@@ -57,7 +58,8 @@ func (s *Server) initDomainRoutes() error {
 
 	photos := photoService.NewService(s.pgdb, s.s3Storage)
 	interests := interestService.NewService(s.pgdb)
-	locations := locationService.NewService(geoip.NewClient())
+	geoipCache := cache.NewRedisCache(s.rdb, "geoip")
+	locations := locationService.NewService(geoip.NewCachedClient(geoip.NewClient(), geoipCache))
 
 	s.initProfileRoutes(profileHandler.NewHandler(profiles, binder))
 	s.initPhotoRoutes(photoHandler.NewHandler(photos))
