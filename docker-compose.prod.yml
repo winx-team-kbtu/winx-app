@@ -11,6 +11,7 @@ services:
       - profile-winx
       - match-winx
       - recommendation-winx
+      - chat-winx
 
   auth-winx:
     image: ghcr.io/winx-team-kbtu/auth:latest
@@ -96,6 +97,24 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3005:3005"
+    depends_on:
+      - postgres-winx
+      - redis-winx
+      - kafka-winx
+      - graylog-winx
+
+  chat-winx:
+    image: ghcr.io/winx-team-kbtu/chat:latest
+    container_name: chat-winx
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres-winx
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-winx-db}
+      DB_USER: ${DB_USER:-winx}
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3006:3006"
     depends_on:
       - postgres-winx
       - redis-winx
