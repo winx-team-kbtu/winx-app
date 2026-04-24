@@ -13,6 +13,10 @@ import (
 // Row is one scored candidate returned by the SQL query.
 type Row struct {
 	UserID          int64
+	Name            string
+	City            string
+	Country         string
+	PhotoURL        string
 	SharedInterests int
 	HasPhoto        bool
 	DistanceMeters  *float64
@@ -102,12 +106,20 @@ func (r *repository) Score(ctx context.Context, userID int64, uc preferences.Use
 		)
 		SELECT
 			p.user_id,
+			COALESCE(p.name, '')                          AS name,
+			COALESCE(p.city, '')                          AS city,
+			COALESCE(p.country, '')                       AS country,
+			COALESCE(ph.url, '')                          AS photo_url,
 			COALESCE(sh.cnt, 0)                           AS shared_interests,
 			(ph.user_id IS NOT NULL)                      AS has_photo,
 			%s                                            AS distance_meters
 		FROM  profiles p
 		LEFT  JOIN shared sh ON sh.user_id = p.user_id
-		LEFT  JOIN profile_photos ph ON ph.user_id = p.user_id
+		LEFT  JOIN (
+			SELECT DISTINCT ON (user_id) user_id, url
+			FROM   profile_photos
+			ORDER  BY user_id, id ASC
+		) ph ON ph.user_id = p.user_id
 		WHERE
 			p.user_id != ?
 			AND p.user_id NOT IN (SELECT uid FROM excluded)

@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: api-gateway
+    static_configs:
+      - targets: ['api-gateway-winx:3000']
+
+  - job_name: auth
+    static_configs:
+      - targets: ['auth-winx:3001']
+
+  - job_name: notification
+    static_configs:
+      - targets: ['notification-winx:3002']
+
+  - job_name: profile
+    static_configs:
+      - targets: ['profile-winx:3003']
+
+  - job_name: match
+    static_configs:
+      - targets: ['match-winx:3004']
+
+  - job_name: recommendation
+    static_configs:
+      - targets: ['recommendation-winx:3005']

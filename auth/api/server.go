@@ -14,6 +14,7 @@ import (
 	"auth/pkg/cache"
 	"auth/pkg/graylog/logger"
 	kafka "auth/pkg/kafka"
+	"auth/pkg/metrics"
 	"auth/pkg/postgres"
 	"auth/pkg/validation"
 	"context"
@@ -28,6 +29,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-oauth2/oauth2/v4"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/go-oauth2/oauth2/v4/manage"
 	oauthModels "github.com/go-oauth2/oauth2/v4/models"
 	oauthServer "github.com/go-oauth2/oauth2/v4/server"
@@ -189,6 +191,9 @@ func router() *gin.Engine {
 
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.RecoveryWithLogger())
+	r.Use(metrics.Middleware("auth"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
 }
