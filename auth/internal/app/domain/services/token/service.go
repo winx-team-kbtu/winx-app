@@ -81,9 +81,7 @@ func (ts *Service) ValidateToken(ctx context.Context, token string) (oauth2.Toke
 		return nil, fmt.Errorf("empty token")
 	}
 
-	if strings.HasPrefix(token, "Bearer ") {
-		token = strings.TrimPrefix(token, "Bearer ")
-	}
+	token = strings.TrimPrefix(token, "Bearer ")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "/", nil)
 	if err != nil {

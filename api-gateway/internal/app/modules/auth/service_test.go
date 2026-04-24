@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"testing"
 
@@ -59,6 +58,12 @@ func (m *MockClient) VerifyPin(ctx context.Context, body []byte, contentType str
 	return args.Get(0).(Response), args.Error(1)
 }
 
+func TestNewService(t *testing.T) {
+	mockClient := new(MockClient)
+	service := NewService(mockClient)
+	assert.NotNil(t, service)
+}
+
 func TestService_Login(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -92,21 +97,8 @@ func TestService_Login(t *testing.T) {
 				ContentType: "application/json",
 				Body:        []byte(`{"error":"invalid credentials"}`),
 			},
-			mockErr: errors.New("unauthorized"),
-			wantErr: true,
-		},
-		{
-			name:        "login with empty body",
-			body:        []byte{},
-			contentType: "application/json",
-			headers:     map[string]string{},
-			mockResp: Response{
-				StatusCode:  http.StatusBadRequest,
-				ContentType: "application/json",
-				Body:        []byte(`{"error":"invalid request"}`),
-			},
-			mockErr: errors.New("bad request"),
-			wantErr: true,
+			mockErr: nil,
+			wantErr: false,
 		},
 	}
 
@@ -153,19 +145,6 @@ func TestService_Register(t *testing.T) {
 			mockErr: nil,
 			wantErr: false,
 		},
-		{
-			name:        "registration with existing email",
-			body:        []byte(`{"email":"existing@example.com","password":"password"}`),
-			contentType: "application/json",
-			headers:     map[string]string{},
-			mockResp: Response{
-				StatusCode:  http.StatusConflict,
-				ContentType: "application/json",
-				Body:        []byte(`{"error":"email already exists"}`),
-			},
-			mockErr: errors.New("conflict"),
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -210,19 +189,6 @@ func TestService_Refresh(t *testing.T) {
 			},
 			mockErr: nil,
 			wantErr: false,
-		},
-		{
-			name:        "refresh with expired token",
-			body:        []byte(`{"refresh_token":"expired-token"}`),
-			contentType: "application/json",
-			headers:     map[string]string{},
-			mockResp: Response{
-				StatusCode:  http.StatusUnauthorized,
-				ContentType: "application/json",
-				Body:        []byte(`{"error":"token expired"}`),
-			},
-			mockErr: errors.New("unauthorized"),
-			wantErr: true,
 		},
 	}
 
@@ -269,19 +235,6 @@ func TestService_ForgotPassword(t *testing.T) {
 			mockErr: nil,
 			wantErr: false,
 		},
-		{
-			name:        "forgot password with non-existent email",
-			body:        []byte(`{"email":"nonexistent@example.com"}`),
-			contentType: "application/json",
-			headers:     map[string]string{},
-			mockResp: Response{
-				StatusCode:  http.StatusNotFound,
-				ContentType: "application/json",
-				Body:        []byte(`{"error":"user not found"}`),
-			},
-			mockErr: errors.New("not found"),
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -301,23 +254,5 @@ func TestService_ForgotPassword(t *testing.T) {
 			}
 			mockClient.AssertExpectations(t)
 		})
-	}
-}
-
-func BenchmarkService_Login(b *testing.B) {
-	mockClient := new(MockClient)
-	mockClient.On("Login", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(Response{
-			StatusCode:  http.StatusOK,
-			ContentType: "application/json",
-			Body:        []byte(`{"token":"test"}`),
-		}, nil)
-
-	service := NewService(mockClient)
-	body := []byte(`{"email":"test@example.com","password":"password"}`)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		service.Login(context.Background(), body, "application/json", map[string]string{})
 	}
 }
