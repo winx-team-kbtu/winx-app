@@ -11,6 +11,7 @@ import (
 	"winx-profile/configs"
 	"winx-profile/internal/app/core/http"
 	"winx-profile/internal/app/core/http/middleware"
+	"winx-profile/pkg/metrics"
 	"winx-profile/pkg/cache"
 	"winx-profile/pkg/graylog/logger"
 	"winx-profile/pkg/mongodb"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"gorm.io/gorm"
@@ -168,6 +170,9 @@ func router() *gin.Engine {
 
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.RecoveryWithLogger())
+	r.Use(metrics.Middleware("profile"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
 }

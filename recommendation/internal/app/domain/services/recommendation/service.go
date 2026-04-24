@@ -118,9 +118,16 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 		}
 
 		// Does the requesting user want to see this candidate's gender?
-		if len(uc.Preferences.InterestedIn) > 0 && meta.Gender != "" {
-			if !containsString([]string(uc.Preferences.InterestedIn), meta.Gender) {
-				log.Printf("[rec]   skip candidateID=%d gender=%q not in interestedIn=%v", c.UserID, meta.Gender, []string(uc.Preferences.InterestedIn))
+		// matching_preferences.interested_in (Postgres) is the source of truth;
+		// fall back to MongoDB profile when it has not been set yet.
+		interestedIn := []string(uc.Preferences.InterestedIn)
+		if len(interestedIn) == 0 {
+			interestedIn = myMeta.InterestedIn
+		}
+		_, hasMeta := metaMap[c.UserID]
+		if len(interestedIn) > 0 && hasMeta {
+			if !containsString(interestedIn, meta.Gender) {
+				log.Printf("[rec]   skip candidateID=%d gender=%q not in interestedIn=%v", c.UserID, meta.Gender, interestedIn)
 				continue
 			}
 		}
@@ -145,9 +152,14 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 			SharedInterests: c.SharedInterests,
 			HasPhoto:        c.HasPhoto,
 			DistanceKM:      distKM,
+			Name:            c.Name,
+			City:            c.City,
+			Country:         c.Country,
+			PhotoURL:        c.PhotoURL,
 			Gender:          meta.Gender,
 			Age:             parseAge(meta.BirthDate),
 			LookingFor:      meta.LookingFor,
+			AboutMe:         meta.AboutMe,
 		})
 	}
 

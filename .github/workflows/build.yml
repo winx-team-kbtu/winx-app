@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, notification, profile, match, recommendation]
+        service: [api-gateway, auth, notification, profile, match, recommendation, chat]
 
     steps:
       - name: Checkout
@@ -70,6 +70,7 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
+          script_stop: true
           script: |
             cd /opt/winx
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin

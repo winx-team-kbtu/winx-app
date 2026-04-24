@@ -90,9 +90,13 @@ func (h *Handler) ListInterests(ctx *gin.Context) {
 }
 
 func (h *Handler) LookupLocationByIP(ctx *gin.Context) {
+	headers := transport.ForwardHeaders(ctx, "Authorization", "X-Forwarded-For", "X-Real-IP")
+	if headers["X-Forwarded-For"] == "" {
+		headers["X-Forwarded-For"] = ctx.ClientIP()
+	}
 	resp, err := h.service.LookupLocationByIP(
 		ctx.Request.Context(),
-		transport.ForwardHeaders(ctx, "Authorization"),
+		headers,
 	)
 	if err != nil {
 		transport.WriteJSONError(ctx, 502, "failed to reach profile service")
