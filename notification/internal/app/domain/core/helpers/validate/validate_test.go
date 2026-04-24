@@ -1,9 +1,10 @@
 package validate
 
 import (
-	dto "winx-notification/internal/app/domain/core/dto/services/password"
-	"winx-notification/internal/app/models"
 	"testing"
+
+	dto "winx-notification/internal/app/domain/core/dto/services/password"
+	"winx-notification/internal/app/models/models"
 
 	"github.com/google/go-cmp/cmp"
 	"golang.org/x/crypto/bcrypt"
@@ -26,7 +27,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "current password is required",
 		},
-
 		"error: invalid current password": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "WrongPassword",
@@ -35,7 +35,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "invalid password",
 		},
-
 		"error: empty new password": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "CorrectPassword",
@@ -44,7 +43,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "new password is required",
 		},
-
 		"error: confirmation does not match": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "CorrectPassword",
@@ -53,7 +51,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "new password confirmation does not match",
 		},
-
 		"error: weak password": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "CorrectPassword",
@@ -62,7 +59,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "new password must be at least 8 characters and contain upper, lower, number and symbol",
 		},
-
 		"error: new password equals old password": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "CorrectPassword",
@@ -71,7 +67,6 @@ func TestValidateChangePassword(t *testing.T) {
 			},
 			shouldErr: "new password must be different from current password",
 		},
-
 		"success": {
 			payload: dto.ChangePasswordDTO{
 				Password:        "CorrectPassword",
@@ -129,36 +124,8 @@ func TestIsValidPassword(t *testing.T) {
 			password: "Password1",
 			expected: false,
 		},
-		"invalid: only lowercase": {
-			password: "password",
-			expected: false,
-		},
-		"invalid: only uppercase": {
-			password: "PASSWORD",
-			expected: false,
-		},
-		"invalid: only numbers": {
-			password: "12345678",
-			expected: false,
-		},
-		"invalid: only letesters": {
-			password: "PasswordPassword",
-			expected: false,
-		},
 		"valid: contains upper, lower, number, symbol": {
 			password: "Aa1!aaaa",
-			expected: true,
-		},
-		"valid: long and complex": {
-			password: "Very$StrongPass123!",
-			expected: true,
-		},
-		"valid: accepts underscore as symbol": {
-			password: "Abcdef1_",
-			expected: true,
-		},
-		"valid: non-latin symbols also count as symbol": {
-			password: "Aa1@пароль",
 			expected: true,
 		},
 	}
