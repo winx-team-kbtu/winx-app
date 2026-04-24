@@ -18,9 +18,11 @@ import (
 	"winx-api-gateway/internal/app/modules/profile"
 	"winx-api-gateway/internal/app/modules/recommendation"
 	"winx-api-gateway/internal/app/swagger"
+	"winx-api-gateway/pkg/metrics"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -165,6 +167,10 @@ func router() *gin.Engine {
 	r.Use(gin.RecoveryWithWriter(gin.DefaultWriter, func(c *gin.Context, err interface{}) {
 		logger.Error("Panic recovered: %v, path=%s", err, c.Request.URL.Path)
 	}))
+
+	r.Use(metrics.Middleware("api-gateway"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
 }

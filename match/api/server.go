@@ -11,6 +11,7 @@ import (
 	"winx-match/configs"
 	apphttp "winx-match/internal/app/core/http"
 	"winx-match/internal/app/core/http/middleware"
+	"winx-match/pkg/metrics"
 	eventdto "winx-match/internal/app/domain/core/dto/services/event"
 	service "winx-match/internal/app/domain/services/general"
 	"winx-match/internal/app/models/models"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -192,6 +194,9 @@ func router() *gin.Engine {
 
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.RecoveryWithLogger())
+	r.Use(metrics.Middleware("match"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
 }
