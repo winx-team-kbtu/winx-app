@@ -74,6 +74,8 @@ jobs:
           script: |
             cd /opt/winx
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
+            sed -i "s|\"\\${TG_BOT_TOKEN}\"|\"${{ secrets.TG_BOT_TOKEN }}\"|g" monitoring/grafana/provisioning/alerting/contact-points.yml
+            sed -i "s|\"\\${TG_CHAT_ID}\"|\"${{ secrets.TG_CHAT_ID }}\"|g" monitoring/grafana/provisioning/alerting/contact-points.yml
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.monitoring.yml up -d
