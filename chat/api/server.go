@@ -22,8 +22,10 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
+	"winx-chat/pkg/metrics"
 )
 
 type Server struct {
@@ -158,6 +160,9 @@ func router() *gin.Engine {
 
 	r.Use(middleware.RequestLogger())
 	r.Use(middleware.RecoveryWithLogger())
+	r.Use(metrics.Middleware("chat"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
 }
