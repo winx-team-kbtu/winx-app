@@ -55,13 +55,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy prod compose to server
+      - name: Copy configs to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
-          source: docker-compose.prod.yml
+          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,monitoring"
           target: /opt/winx
 
       - name: Pull images and restart
@@ -76,4 +76,5 @@ jobs:
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.monitoring.yml up -d --remove-orphans
             docker image prune -f
