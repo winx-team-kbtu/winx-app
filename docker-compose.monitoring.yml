@@ -2,12 +2,14 @@ services:
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: prometheus-winx
+    restart: unless-stopped
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
       - '--web.enable-lifecycle'
     ports:
       - "9090:9090"
@@ -15,10 +17,15 @@ services:
   grafana:
     image: grafana/grafana:11.1.0
     container_name: grafana-winx
+    restart: unless-stopped
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ALERTING_ENABLED=true
+      - GF_UNIFIED_ALERTING_ENABLED=true
+      - TG_BOT_TOKEN=${TG_BOT_TOKEN}
+      - TG_CHAT_ID=${TG_CHAT_ID}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -27,6 +34,35 @@ services:
       - "3010:3000"
     depends_on:
       - prometheus
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: postgres-exporter-winx
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER:-winx}:${DB_PASSWORD}@postgres-winx:5432/${DB_NAME:-winx-db}?sslmode=disable"
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: redis-exporter-winx
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis://redis-winx:6379"
+
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.40
+    container_name: mongodb-exporter-winx
+    restart: unless-stopped
+    command:
+      - --mongodb.uri=mongodb://mongo-winx:27017
+      - --collect-all
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:v1.7.0
+    container_name: kafka-exporter-winx
+    restart: unless-stopped
+    command:
+      - --kafka.server=kafka-winx:9092
 
 volumes:
   prometheus_data:
