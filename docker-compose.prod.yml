@@ -129,15 +129,11 @@ services:
     container_name: opensearch-winx
     restart: unless-stopped
     environment:
-      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
-      bootstrap.memory_lock: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms256m -Xmx256m"
+      bootstrap.memory_lock: "false"
       discovery.type: single-node
       plugins.security.disabled: "true"
       DISABLE_INSTALL_DEMO_CONFIG: "true"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
     volumes:
       - opensearch_data:/usr/share/opensearch/data
 
@@ -157,6 +153,8 @@ services:
     ports:
       - "9000:9000"
       - "12201:12201/tcp"
+    volumes:
+      - graylog_data:/usr/share/graylog/data
     depends_on:
       - mongo-winx
       - opensearch-winx
@@ -218,6 +216,8 @@ services:
       - redis_data:/data
 
 volumes:
+  graylog_data:
+    name: winx-graylog-data
   opensearch_data:
     name: winx-opensearch-data
   mongo_data:
