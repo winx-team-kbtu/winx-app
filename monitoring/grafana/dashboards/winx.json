@@ -1,55 +1,81 @@
 {
   "title": "Winx Services",
   "uid": "winx-overview",
-  "schemaVersion": 36,
-  "version": 1,
+  "schemaVersion": 38,
+  "version": 2,
   "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
   "panels": [
     {
+      "id": 100,
+      "title": "Application Metrics",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
       "id": 1,
-      "title": "HTTP Requests per Second",
+      "title": "Requests per Second",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 1, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
       "targets": [
         {
           "expr": "sum(rate(http_requests_total[1m])) by (service)",
-          "legendFormat": "{{service}}"
+          "legendFormat": "{{ service }}",
+          "refId": "A"
         }
       ]
     },
     {
       "id": 2,
-      "title": "HTTP Error Rate (4xx + 5xx)",
+      "title": "Error Rate % (4xx + 5xx)",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 1, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "fieldConfig": {
+        "defaults": { "unit": "percent", "min": 0 }
+      },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{status=~\"[45]..\"}[1m])) by (service)",
-          "legendFormat": "{{service}}"
+          "expr": "sum(rate(http_requests_total{status=~\"[45]..\"}[1m])) by (service) / sum(rate(http_requests_total[1m])) by (service) * 100",
+          "legendFormat": "{{ service }}",
+          "refId": "A"
         }
       ]
     },
     {
       "id": 3,
-      "title": "Request Duration p99 (seconds)",
+      "title": "p99 Latency (seconds)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "gridPos": { "x": 0, "y": 9, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[1m])) by (service, le))",
-          "legendFormat": "{{service}} p99"
+          "legendFormat": "{{ service }} p99",
+          "refId": "A"
         }
       ]
     },
     {
       "id": 4,
-      "title": "Request Duration p50 (seconds)",
+      "title": "p50 Latency (seconds)",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "gridPos": { "x": 12, "y": 9, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1m])) by (service, le))",
-          "legendFormat": "{{service}} p50"
+          "legendFormat": "{{ service }} p50",
+          "refId": "A"
         }
       ]
     },
@@ -57,17 +83,274 @@
       "id": 5,
       "title": "Total Requests by Service",
       "type": "stat",
-      "gridPos": { "x": 0, "y": 16, "w": 24, "h": 4 },
-      "targets": [
-        {
-          "expr": "sum(http_requests_total) by (service)",
-          "legendFormat": "{{service}}"
-        }
-      ],
+      "gridPos": { "x": 0, "y": 17, "w": 24, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
         "orientation": "horizontal"
-      }
+      },
+      "targets": [
+        {
+          "expr": "sum(http_requests_total) by (service)",
+          "legendFormat": "{{ service }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "title": "Go Runtime",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 21, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 6,
+      "title": "Goroutines",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 22, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "go_goroutines",
+          "legendFormat": "{{ job }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Heap Memory Allocated",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 22, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_alloc_bytes",
+          "legendFormat": "{{ job }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "title": "PostgreSQL",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 30, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 8,
+      "title": "Active Connections",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 31, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(pg_stat_activity_count) by (state)",
+          "legendFormat": "{{ state }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Transactions per Second",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 31, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_database_xact_commit_total[1m]))",
+          "legendFormat": "commits/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(pg_stat_database_xact_rollback_total[1m]))",
+          "legendFormat": "rollbacks/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Cache Hit Ratio",
+      "type": "gauge",
+      "gridPos": { "x": 16, "y": 31, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "green", "value": 95 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_database_blks_hit_total[5m])) / (sum(rate(pg_stat_database_blks_hit_total[5m])) + sum(rate(pg_stat_database_blks_read_total[5m]))) * 100",
+          "legendFormat": "Hit %",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "title": "Redis",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 39, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 11,
+      "title": "Memory Used",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 40, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes" }
+      },
+      "targets": [
+        {
+          "expr": "redis_memory_used_bytes",
+          "legendFormat": "Used",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Commands per Second",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 40, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(rate(redis_commands_total[1m])) by (cmd)",
+          "legendFormat": "{{ cmd }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Keyspace Hit Rate",
+      "type": "gauge",
+      "gridPos": { "x": 16, "y": 40, "w": 8, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "green", "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(redis_keyspace_hits_total[5m]) / (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m])) * 100",
+          "legendFormat": "Hit %",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "title": "Kafka",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 48, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 14,
+      "title": "Topic Partition Offsets",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 49, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(kafka_topic_partition_current_offset) by (topic)",
+          "legendFormat": "{{ topic }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "title": "Consumer Group Lag",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 49, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(kafka_consumergroup_lag) by (consumergroup, topic)",
+          "legendFormat": "{{ consumergroup }} / {{ topic }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "title": "MongoDB",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 57, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 16,
+      "title": "Connections",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 58, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "mongodb_connections{state=\"current\"}",
+          "legendFormat": "current",
+          "refId": "A"
+        },
+        {
+          "expr": "mongodb_connections{state=\"available\"}",
+          "legendFormat": "available",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Operations per Second",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 58, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus-winx" },
+      "targets": [
+        {
+          "expr": "sum(rate(mongodb_op_counters_total[1m])) by (type)",
+          "legendFormat": "{{ type }}",
+          "refId": "A"
+        }
+      ]
     }
   ]
 }
