@@ -20,6 +20,13 @@ type (
 		Logger grayLog `yaml:"graylog"`
 		Oauth  oauth   `yaml:"oauth"`
 		SMTP   smtp    `yaml:"smtp"`
+		Resend resend  `yaml:"resend"`
+	}
+
+	resend struct {
+		APIKey    string `yaml:"api_key"`
+		FromEmail string `yaml:"from_email"`
+		FromName  string `yaml:"from_name"`
 	}
 
 	app struct {
@@ -156,6 +163,11 @@ func InitConfig() {
 			Password:  viper.GetString("smtp.password"),
 			FromEmail: viper.GetString("smtp.from_email"),
 			FromName:  viper.GetString("smtp.from_name"),
+		},
+		Resend: resend{
+			APIKey:    viper.GetString("resend.api_key"),
+			FromEmail: viper.GetString("resend.from_email"),
+			FromName:  viper.GetString("resend.from_name"),
 		},
 	}
 }
