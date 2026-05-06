@@ -24,6 +24,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ALERTING_ENABLED=true
       - GF_UNIFIED_ALERTING_ENABLED=true
+      - GF_SERVER_ROOT_URL=${GRAFANA_EXTERNAL_URI:-http://localhost:3010}
       - TG_BOT_TOKEN=${TG_BOT_TOKEN}
       - TG_CHAT_ID=${TG_CHAT_ID}
     volumes:
