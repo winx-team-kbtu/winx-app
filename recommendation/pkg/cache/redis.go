@@ -74,3 +74,24 @@ func (c *RedisCache) TTL(ctx context.Context, key string) (time.Duration, error)
 func (c *RedisCache) Increment(ctx context.Context, key string, delta int64) (int64, error) {
 	return c.rdb.IncrBy(ctx, c.k(key), delta).Result()
 }
+
+func (c *RedisCache) MGet(ctx context.Context, keys ...string) (map[string][]byte, error) {
+	if len(keys) == 0 {
+		return map[string][]byte{}, nil
+	}
+	ks := make([]string, len(keys))
+	for i, k := range keys {
+		ks[i] = c.k(k)
+	}
+	vals, err := c.rdb.MGet(ctx, ks...).Result()
+	if err != nil {
+		return nil, err
+	}
+	result := make(map[string][]byte, len(keys))
+	for i, v := range vals {
+		if v != nil {
+			result[keys[i]] = []byte(v.(string))
+		}
+	}
+	return result, nil
+}

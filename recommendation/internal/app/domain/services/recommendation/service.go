@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -163,13 +164,19 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 		})
 	}
 
-	// 7. Cache full list — skip caching empty results so future candidates
+	// 7. Sort by final score descending (popularity was added in-memory so SQL
+	// order no longer reflects the true ranking).
+	sort.SliceStable(result, func(i, j int) bool {
+		return result[i].Score > result[j].Score
+	})
+
+	// 8. Cache full list — skip caching empty results so future candidates
 	// (e.g. newly seeded/registered users) are not hidden until TTL expires.
 	if len(result) > 0 {
 		s.toCache(ctx, input.UserID, result)
 	}
 
-	// 8. Paginate
+	// 9. Paginate
 	return paginate(result, input.Limit, input.Offset), nil
 }
 
@@ -191,19 +198,31 @@ func computeScore(sharedInterests int, hasPhoto bool, distMeters *float64, popul
 	return score
 }
 
-// fetchPopularityScores reads the net right-swipe counters for each candidate
-// from Redis. Missing keys are treated as 0. Errors are silently ignored so a
-// Redis hiccup never breaks recommendations.
+// fetchPopularityScores reads the net right-swipe counters for all candidates
+// in a single Redis round trip (MGet). Missing keys are treated as 0.
+// Errors are silently ignored so a Redis hiccup never breaks recommendations.
 func (s *service) fetchPopularityScores(ctx context.Context, userIDs []int64) map[int64]int64 {
+	if len(userIDs) == 0 {
+		return map[int64]int64{}
+	}
+
+	keys := make([]string, len(userIDs))
+	for i, id := range userIDs {
+		keys[i] = fmt.Sprintf("%s%d", popPrefix, id)
+	}
+
+	vals, err := s.cache.MGet(ctx, keys...)
 	scores := make(map[int64]int64, len(userIDs))
-	for _, id := range userIDs {
-		raw, err := s.cache.Get(ctx, fmt.Sprintf("%s%d", popPrefix, id))
-		if err != nil {
-			continue // cache miss or error → treat as 0
+	if err != nil {
+		return scores
+	}
+
+	for i, id := range userIDs {
+		if b, ok := vals[keys[i]]; ok {
+			var n int64
+			fmt.Sscanf(string(b), "%d", &n)
+			scores[id] = n
 		}
-		var n int64
-		fmt.Sscanf(string(raw), "%d", &n)
-		scores[id] = n
 	}
 	return scores
 }
