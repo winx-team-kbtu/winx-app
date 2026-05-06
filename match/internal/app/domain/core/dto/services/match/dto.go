@@ -1,6 +1,8 @@
 package match
 
-// ListDTO — входные данные для сервиса листинга матчей.
+import "time"
+
+// ListDTO represents pagination input for listing matches.
 type ListDTO struct {
 	UserID int64
 	Limit  int
@@ -11,4 +13,15 @@ type ListDTO struct {
 type DeleteDTO struct {
 	ID     int64
 	UserID int64
+}
+
+// MatchWithProfile is a match enriched with the matched user's profile info.
+type MatchWithProfile struct {
+	ID            int64
+	MatchedUserID int64
+	Name          string
+	City          string
+	Country       string
+	PhotoURL      string
+	CreatedAt     time.Time
 }

@@ -17,9 +17,7 @@ var ErrNotFound = errors.New("match not found")
 // Service — интерфейс сервиса матчей.
 // Добавляй новые методы сюда и реализуй в service struct.
 type Service interface {
-	// TryCreateMatch проверяет взаимный right-свайп и создаёт матч если он есть.
-	// Возвращает (true, nil) если матч был создан.
-	List(ctx context.Context, input matchServicedto.ListDTO) ([]models.Match, error)
+	List(ctx context.Context, input matchServicedto.ListDTO) ([]matchServicedto.MatchWithProfile, error)
 	Create(ctx context.Context, user1ID, user2ID int64) (models.Match, error)
 	Delete(ctx context.Context, input matchServicedto.DeleteDTO) (bool, error)
 }
@@ -34,17 +32,34 @@ func NewService(db *gorm.DB) Service {
 	}
 }
 
-func (s *service) List(ctx context.Context, input matchServicedto.ListDTO) ([]models.Match, error) {
+func (s *service) List(ctx context.Context, input matchServicedto.ListDTO) ([]matchServicedto.MatchWithProfile, error) {
 	limit := input.Limit
 	if limit == 0 {
 		limit = 20
 	}
 
-	return s.matchRepo.ListByUserID(ctx, repodto.ListDTO{
+	rows, err := s.matchRepo.ListWithProfiles(ctx, repodto.ListDTO{
 		UserID: input.UserID,
 		Limit:  limit,
 		Offset: input.Offset,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]matchServicedto.MatchWithProfile, 0, len(rows))
+	for _, r := range rows {
+		result = append(result, matchServicedto.MatchWithProfile{
+			ID:            r.ID,
+			MatchedUserID: r.MatchedUserID,
+			Name:          r.Name,
+			City:          r.City,
+			Country:       r.Country,
+			PhotoURL:      r.PhotoURL,
+			CreatedAt:     r.CreatedAt,
+		})
+	}
+	return result, nil
 }
 
 func (s *service) Delete(ctx context.Context, input matchServicedto.DeleteDTO) (bool, error) {

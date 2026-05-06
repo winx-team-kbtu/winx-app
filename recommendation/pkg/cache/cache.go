@@ -18,4 +18,7 @@ type Cache interface {
 	// Increment atomically adds delta to the integer stored at key and returns
 	// the new value. The key is created with value 0 if it does not exist.
 	Increment(ctx context.Context, key string, delta int64) (int64, error)
+	// MGet fetches multiple keys in a single round trip. Missing keys are
+	// omitted from the returned map (not an error).
+	MGet(ctx context.Context, keys ...string) (map[string][]byte, error)
 }

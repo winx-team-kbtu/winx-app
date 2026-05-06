@@ -16,6 +16,8 @@ var ErrNotFound = errors.New("swipe not found")
 // Добавляй новые методы сюда и реализуй в service struct.
 type Service interface {
 	FindSwipe(ctx context.Context, swiperID, swipedID int64) (string, error)
+	// FindOwn returns the direction of swiperID's own swipe on swipedID, or "" if none exists.
+	FindOwn(ctx context.Context, swiperID, swipedID int64) (string, error)
 	Create(ctx context.Context, swiperID, swipedID int64, direction string) (models.Swipe, error)
 	Delete(ctx context.Context, swiperID, swipedID int64) error
 }
@@ -28,6 +30,10 @@ func NewService(db *gorm.DB) Service {
 	return &service{
 		swipeRepo: swipeRepo.NewRepository(db),
 	}
+}
+
+func (s *service) FindOwn(ctx context.Context, swiperID, swipedID int64) (string, error) {
+	return s.swipeRepo.FindOwn(ctx, swiperID, swipedID)
 }
 
 func (s *service) FindSwipe(ctx context.Context, swiperID, swipedID int64) (string, error) {

@@ -15,8 +15,10 @@ var ErrNotFound = errors.New("swipe not found")
 
 type Repository interface {
 	Create(ctx context.Context, input swipeRepoDto.CreateDTO) (models.Swipe, error)
-	// FindMutual возвращает (true, nil) если существует свайп right в обе стороны.
+	// FindMutual returns the direction of the swipe where swiper=input.SwiperID swiped on input.SwipedID.
 	FindMutual(ctx context.Context, input swipeRepoDto.FindDTO) (string, error)
+	// FindOwn returns the direction of an existing swipe from swiperID → swipedID, or "" if none.
+	FindOwn(ctx context.Context, swiperID, swipedID int64) (string, error)
 	Delete(ctx context.Context, input swipeRepoDto.DeleteDTO) error
 }
 
@@ -60,6 +62,20 @@ func (r *repository) FindMutual(ctx context.Context, input swipeRepoDto.FindDTO)
 		return "", fmt.Errorf("failed to check mutual swipe: %w", err)
 	}
 
+	return swipe.Direction, nil
+}
+
+func (r *repository) FindOwn(ctx context.Context, swiperID, swipedID int64) (string, error) {
+	var swipe models.Swipe
+	err := r.db.WithContext(ctx).
+		Where("swiper_id = ? AND swiped_id = ?", swiperID, swipedID).
+		First(&swipe).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("find own swipe: %w", err)
+	}
 	return swipe.Direction, nil
 }
 

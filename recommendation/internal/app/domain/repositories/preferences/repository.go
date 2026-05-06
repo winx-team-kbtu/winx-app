@@ -10,6 +10,21 @@ import (
 	"gorm.io/gorm"
 )
 
+type prefsResult struct {
+	prefs models.MatchingPreferences
+	err   error
+}
+
+type interestsResult struct {
+	ids []int64
+	err error
+}
+
+type locationResult struct {
+	lat, lon *float64
+	err      error
+}
+
 var ErrNotFound = errors.New("preferences not found")
 
 // UserContext holds everything the algorithm needs about the requesting user
@@ -35,57 +50,74 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 // GetUserContext fetches matching_preferences, interest IDs and location
-// for the given user in three lightweight queries.
+// for the given user. All three queries run in parallel.
 func (r *repository) GetUserContext(ctx context.Context, userID int64) (UserContext, error) {
-	var uc UserContext
+	prefsCh := make(chan prefsResult, 1)
+	interestsCh := make(chan interestsResult, 1)
+	locationCh := make(chan locationResult, 1)
 
-	// 1. Matching preferences (may not exist yet — use defaults in that case)
-	var prefs models.MatchingPreferences
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&prefs).Error
-	if err != nil {
-		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return UserContext{}, fmt.Errorf("get matching preferences: %w", err)
+	go func() {
+		var prefs models.MatchingPreferences
+		err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&prefs).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			prefs = models.MatchingPreferences{
+				UserID:        userID,
+				MinAge:        18,
+				MaxAge:        99,
+				MaxDistanceKM: 50,
+				ShowMeGlobal:  false,
+			}
+			err = nil
 		}
-		// sensible defaults
-		prefs = models.MatchingPreferences{
-			UserID:        userID,
-			MinAge:        18,
-			MaxAge:        99,
-			MaxDistanceKM: 50,
-			ShowMeGlobal:  false,
+		prefsCh <- prefsResult{prefs, err}
+	}()
+
+	go func() {
+		var interests []models.UserInterest
+		err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&interests).Error
+		ids := make([]int64, 0, len(interests))
+		for _, i := range interests {
+			ids = append(ids, i.InterestID)
 		}
-	}
-	uc.Preferences = prefs
+		interestsCh <- interestsResult{ids, err}
+	}()
 
-	// 2. Interest IDs
-	var interests []models.UserInterest
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&interests).Error; err != nil {
-		return UserContext{}, fmt.Errorf("get user interests: %w", err)
-	}
-	uc.InterestIDs = make([]int64, 0, len(interests))
-	for _, i := range interests {
-		uc.InterestIDs = append(uc.InterestIDs, i.InterestID)
+	go func() {
+		type locationRow struct {
+			Longitude *float64
+			Latitude  *float64
+		}
+		var loc locationRow
+		err := r.db.WithContext(ctx).Raw(`
+			SELECT
+				ST_X(current_location::geometry) AS longitude,
+				ST_Y(current_location::geometry) AS latitude
+			FROM profiles
+			WHERE user_id = ? AND current_location IS NOT NULL
+			LIMIT 1
+		`, userID).Scan(&loc).Error
+		locationCh <- locationResult{loc.Latitude, loc.Longitude, err}
+	}()
+
+	pr := <-prefsCh
+	if pr.err != nil {
+		return UserContext{}, fmt.Errorf("get matching preferences: %w", pr.err)
 	}
 
-	// 3. Current location from profiles table
-	type locationRow struct {
-		Longitude *float64
-		Latitude  *float64
+	ir := <-interestsCh
+	if ir.err != nil {
+		return UserContext{}, fmt.Errorf("get user interests: %w", ir.err)
 	}
-	var loc locationRow
-	err = r.db.WithContext(ctx).Raw(`
-		SELECT
-			ST_X(current_location::geometry) AS longitude,
-			ST_Y(current_location::geometry) AS latitude
-		FROM profiles
-		WHERE user_id = ? AND current_location IS NOT NULL
-		LIMIT 1
-	`, userID).Scan(&loc).Error
-	if err != nil {
-		return UserContext{}, fmt.Errorf("get user location: %w", err)
-	}
-	uc.Latitude = loc.Latitude
-	uc.Longitude = loc.Longitude
 
-	return uc, nil
+	lr := <-locationCh
+	if lr.err != nil {
+		return UserContext{}, fmt.Errorf("get user location: %w", lr.err)
+	}
+
+	return UserContext{
+		Preferences: pr.prefs,
+		InterestIDs: ir.ids,
+		Latitude:    lr.lat,
+		Longitude:   lr.lon,
+	}, nil
 }
