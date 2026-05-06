@@ -11,11 +11,13 @@ groups:
         title: High Error Rate (>10%)
         condition: C
         for: 5m
+        noDataState: OK
+        execErrState: OK
         labels:
           severity: warning
         annotations:
           summary: "High error rate on {{ $labels.service }}"
-          description: "Error rate has been above 10% for 5 minutes."
+          description: "Error rate has been above 10% for 5 minutes on {{ $labels.service }}."
         data:
           - refId: A
             relativeTimeRange: { from: 300, to: 0 }
@@ -40,11 +42,13 @@ groups:
         title: High p99 Latency (>2s)
         condition: C
         for: 5m
+        noDataState: OK
+        execErrState: OK
         labels:
           severity: warning
         annotations:
           summary: "High latency on {{ $labels.service }}"
-          description: "p99 latency has been above 2 seconds for 5 minutes."
+          description: "p99 latency has been above 2 seconds for 5 minutes on {{ $labels.service }}."
         data:
           - refId: A
             relativeTimeRange: { from: 300, to: 0 }
@@ -69,11 +73,13 @@ groups:
         title: Service Down
         condition: C
         for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
         labels:
           severity: critical
         annotations:
           summary: "Service {{ $labels.job }} is down"
-          description: "Prometheus has not received metrics from this service for 2 minutes."
+          description: "Prometheus has not received metrics from {{ $labels.job }} for 2 minutes."
         data:
           - refId: A
             relativeTimeRange: { from: 300, to: 0 }
@@ -98,6 +104,8 @@ groups:
         title: PostgreSQL High Connection Usage (>80%)
         condition: C
         for: 5m
+        noDataState: OK
+        execErrState: OK
         labels:
           severity: warning
         annotations:
@@ -127,10 +135,12 @@ groups:
         title: Kafka Consumer Lag High (>1000)
         condition: C
         for: 5m
+        noDataState: OK
+        execErrState: OK
         labels:
           severity: warning
         annotations:
-          summary: "Kafka consumer group {{ $labels.consumergroup }} is lagging"
+          summary: "Kafka consumer group {{ $labels.consumergroup }} is lagging on {{ $labels.topic }}"
           description: "Consumer lag has been above 1000 messages for 5 minutes."
         data:
           - refId: A
