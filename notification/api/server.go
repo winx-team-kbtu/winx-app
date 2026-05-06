@@ -12,7 +12,6 @@ import (
 	"winx-notification/configs"
 	"winx-notification/internal/app/core/http"
 	"winx-notification/internal/app/core/http/middleware"
-	"winx-notification/pkg/metrics"
 	eventdto "winx-notification/internal/app/domain/core/dto/services/event"
 	userrepo "winx-notification/internal/app/domain/repositories/user"
 	"winx-notification/internal/app/notifications"
@@ -20,6 +19,7 @@ import (
 	"winx-notification/pkg/email"
 	"winx-notification/pkg/graylog/logger"
 	"winx-notification/pkg/kafka"
+	"winx-notification/pkg/metrics"
 	"winx-notification/pkg/postgres"
 	"winx-notification/pkg/validation"
 
@@ -36,7 +36,7 @@ type Server struct {
 	rdb        *redis.Client
 	cache      cache.Cache
 	validator  *validation.Validator
-	mailer     *email.SMTPMailer
+	mailer     email.Mailer
 	store      *notifications.Store
 	userRepo   userrepo.Repository
 	readers    []*kafka.Consumer
@@ -53,6 +53,27 @@ type kafkaTopics struct {
 }
 
 var handler *gin.Engine
+
+// newMailer returns a ResendMailer when RESEND_API_KEY is set, otherwise
+// falls back to SMTPMailer. Resend uses HTTPS so it works on DigitalOcean
+// where outbound SMTP ports are blocked.
+func newMailer() email.Mailer {
+	if configs.Config.Resend.APIKey != "" {
+		return email.NewResendMailer(
+			configs.Config.Resend.APIKey,
+			configs.Config.Resend.FromEmail,
+			configs.Config.Resend.FromName,
+		)
+	}
+	return email.NewSMTPMailer(
+		configs.Config.SMTP.Host,
+		configs.Config.SMTP.Port,
+		configs.Config.SMTP.Username,
+		configs.Config.SMTP.Password,
+		configs.Config.SMTP.FromEmail,
+		configs.Config.SMTP.FromName,
+	)
+}
 
 func NewServer(ctx context.Context) error {
 	configs.InitConfig()
@@ -83,16 +104,9 @@ func newServer() (*Server, error) {
 		rdb:       rdb,
 		cache:     cache.NewRedisCache(rdb, "users"),
 		validator: validator,
-		mailer: email.NewSMTPMailer(
-			configs.Config.SMTP.Host,
-			configs.Config.SMTP.Port,
-			configs.Config.SMTP.Username,
-			configs.Config.SMTP.Password,
-			configs.Config.SMTP.FromEmail,
-			configs.Config.SMTP.FromName,
-		),
-		groupID: configs.Config.Kafka.GroupID,
-		brokers: configs.Config.Kafka.Brokers,
+		mailer:    newMailer(),
+		groupID:   configs.Config.Kafka.GroupID,
+		brokers:   configs.Config.Kafka.Brokers,
 		topics: kafkaTopics{
 			userRegistered: configs.Config.Kafka.Topics.UserRegistered,
 			userPassword:   configs.Config.Kafka.Topics.UserPassword,

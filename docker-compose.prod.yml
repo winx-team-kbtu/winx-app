@@ -47,6 +47,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM_EMAIL: ${SMTP_USERNAME}
       SMTP_FROM_NAME: Winx
+      RESEND_API_KEY: ${RESEND_API_KEY}
     ports:
       - "3002:3002"
     depends_on:
