@@ -84,7 +84,7 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,monitoring"
+          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,monitoring/prometheus.yml,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards"
           target: /opt/winx
 
       - name: Pull images and restart
@@ -97,8 +97,6 @@ jobs:
           script: |
             cd /opt/winx
             echo "${{ secrets.GHCR_PULL_TOKEN }}" | docker login ghcr.io -u ${{ secrets.GHCR_USERNAME }} --password-stdin
-            sed -i "s|\"\\${TG_BOT_TOKEN}\"|\"${{ secrets.TG_BOT_TOKEN }}\"|g" monitoring/grafana/provisioning/alerting/contact-points.yml
-            sed -i "s|\"\\${TG_CHAT_ID}\"|\"${{ secrets.TG_CHAT_ID }}\"|g" monitoring/grafana/provisioning/alerting/contact-points.yml
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.monitoring.yml up -d
