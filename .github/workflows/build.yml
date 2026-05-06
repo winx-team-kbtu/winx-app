@@ -9,8 +9,31 @@ env:
   ORG: winx-team-kbtu
 
 jobs:
+  test:
+    name: Test (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api-gateway, auth, notification, match, chat]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: ./${{ matrix.service }}/go.mod
+          cache-dependency-path: ./${{ matrix.service }}/go.sum
+
+      - name: Run tests
+        working-directory: ./${{ matrix.service }}
+        run: go test -v -race ./...
+
   build-and-push:
     name: Build & Push (${{ matrix.service }})
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: read
