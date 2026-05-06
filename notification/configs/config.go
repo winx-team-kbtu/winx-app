@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -94,6 +95,11 @@ func InitConfig() {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	viper.AddConfigPath("../../../..")
+
+	// Allow environment variables to override yaml values.
+	// smtp.password → SMTP_PASSWORD, smtp.username → SMTP_USERNAME, etc.
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	if err := viper.ReadInConfig(); err != nil {
 		fmt.Printf("не удалось спарсить конфиг файл! Ошибка:%s", err)
