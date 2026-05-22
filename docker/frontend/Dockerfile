@@ -10,7 +10,7 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve with nginx
-FROM nginx:alpine
+FROM nginx:alpine AS publish
 
 COPY --from=builder /app/dist/winx-frontend/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

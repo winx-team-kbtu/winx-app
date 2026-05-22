@@ -41,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api-gateway, auth, notification, profile, match, recommendation, chat]
+        service: [api-gateway, auth, notification, profile, match, recommendation, chat, frontend]
 
     steps:
       - name: Checkout

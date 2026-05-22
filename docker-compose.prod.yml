@@ -15,6 +15,13 @@ services:
     depends_on:
       - api-gateway-winx
 
+  frontend-winx:
+    image: ghcr.io/winx-team-kbtu/frontend:latest
+    container_name: frontend-winx
+    restart: unless-stopped
+    depends_on:
+      - api-gateway-winx
+
   api-gateway-winx:
     image: ghcr.io/winx-team-kbtu/api-gateway:latest
     container_name: api-gateway-winx
