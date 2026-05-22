@@ -94,9 +94,19 @@ export class ProfileComponent implements OnInit {
             latitude: res.data.latitude,
             longitude: res.data.longitude,
           };
+        } else {
+          this.setDefaultLocation();
         }
       },
+      error: () => this.setDefaultLocation(),
     });
+  }
+
+  private setDefaultLocation(): void {
+    if (!this.profile.location) this.profile.location = { city: '' };
+    this.profile.location.city = 'Almaty';
+    this.profile.location.country = 'Kazakhstan';
+    this.profile.location.current_location = { latitude: 43.34536794589393, longitude: 76.89939104069116 };
   }
 
   onPhotoSelected(event: Event): void {
