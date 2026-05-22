@@ -1,4 +1,20 @@
 services:
+  caddy-winx:
+    image: caddy:2-alpine
+    container_name: caddy-winx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PROMETHEUS_BASIC_AUTH_HASH: ${PROMETHEUS_BASIC_AUTH_HASH}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api-gateway-winx
+
   api-gateway-winx:
     image: ghcr.io/winx-team-kbtu/api-gateway:latest
     container_name: api-gateway-winx
@@ -235,3 +251,7 @@ volumes:
     name: winx-kafka-data
   redis_data:
     name: winx-redis-data
+  caddy_data:
+    name: winx-caddy-data
+  caddy_config:
+    name: winx-caddy-config

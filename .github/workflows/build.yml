@@ -84,7 +84,7 @@ jobs:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
           key: ${{ secrets.DO_SSH_KEY }}
-          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,monitoring/prometheus.yml,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards"
+          source: "docker-compose.prod.yml,docker-compose.monitoring.yml,Caddyfile,monitoring/prometheus.yml,monitoring/grafana/provisioning/datasources,monitoring/grafana/provisioning/dashboards,monitoring/grafana/dashboards"
           target: /opt/winx
 
       - name: Pull images and restart
