@@ -29,7 +29,6 @@ export interface Profile {
 export interface Photo {
   id: number;
   url: string;
-  is_primary: boolean;
 }
 
 export interface Interest {

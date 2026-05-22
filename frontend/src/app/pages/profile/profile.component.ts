@@ -47,8 +47,8 @@ export class ProfileComponent implements OnInit {
 
     this.profileService.getPhotos().subscribe({
       next: (res) => {
-        const primary = (res.data ?? []).find(p => p.is_primary);
-        if (primary) this.photoUrl = primary.url;
+        const first = (res.data ?? [])[0];
+        if (first) this.photoUrl = first.url;
       },
     });
   }
@@ -127,16 +127,52 @@ export class ProfileComponent implements OnInit {
     this.saving = true;
     this.saveError = '';
     this.saveSuccess = false;
-    this.profileService.store(this.profile).subscribe({
+
+    const payload = this.buildPayload();
+    console.log('[profile] saving payload:', payload);
+
+    this.profileService.store(payload).subscribe({
       next: () => {
+        this.profileService.getMe().subscribe({
+          next: (res) => {
+            if (res.data) {
+              this.profile = res.data;
+              if (!this.profile.location) this.profile.location = { city: '' };
+            }
+            console.log('[profile] reloaded after save:', this.profile);
+          },
+        });
         this.saveSuccess = true;
         this.saving = false;
         setTimeout(() => (this.saveSuccess = false), 3000);
       },
       error: (err) => {
-        this.saveError = err?.error?.message || 'Failed to save. Try again.';
+        const msg = err?.error?.message;
+        console.error('[profile] save error:', err?.error);
+        this.saveError = typeof msg === 'string' ? msg : JSON.stringify(msg) || 'Failed to save. Try again.';
         this.saving = false;
       },
     });
+  }
+
+  private buildPayload(): Partial<Profile> {
+    const p = { ...this.profile };
+    // Strip empty strings — backend validates optional pointer fields and rejects ""
+    if (!p.birth_date) delete p.birth_date;
+    if (!p.gender) delete p.gender;
+    if (!p.looking_for) delete p.looking_for;
+    if (!p.first_name) delete p.first_name;
+    if (!p.about_me) delete p.about_me;
+    if (!p.job_title) delete p.job_title;
+    if (!p.company) delete p.company;
+    if (!p.school) delete p.school;
+    // Remove read-only/computed fields the backend doesn't need
+    delete (p as any).id;
+    delete (p as any).user_id;
+    delete (p as any).email;
+    delete (p as any).interests;
+    delete (p as any).created_at;
+    delete (p as any).updated_at;
+    return p;
   }
 }
