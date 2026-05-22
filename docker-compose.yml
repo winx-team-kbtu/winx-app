@@ -1,4 +1,14 @@
 services:
+  frontend-winx:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    container_name: frontend-winx
+    ports:
+      - "4200:80"
+    depends_on:
+      - api-gateway-winx
+
   api-gateway-winx:
     build:
       context: ./api-gateway

@@ -1,0 +1,26 @@
+<div class="page" style="padding-top: 84px;">
+  <div class="page-header">
+    <h2>Notifications 🔔</h2>
+    <p>What's happening in your world</p>
+  </div>
+
+  <div *ngIf="loading" class="spinner"></div>
+
+  <div *ngIf="!loading && notifications.length === 0" class="empty-state">
+    <div class="emoji">🔔</div>
+    <h3>All clear!</h3>
+    <p>No notifications yet</p>
+  </div>
+
+  <div *ngIf="!loading" class="notif-list">
+    <div class="notif-item" *ngFor="let notif of notifications">
+      <div class="notif-icon">{{ getIcon(notif.type) }}</div>
+      <div class="notif-content">
+        <p class="notif-subject">{{ notif.subject }}</p>
+        <p class="notif-body" *ngIf="notif.body">{{ notif.body }}</p>
+        <span class="notif-time">{{ notif.created_at | date:'medium' }}</span>
+      </div>
+      <button class="notif-delete" (click)="delete(notif)">✕</button>
+    </div>
+  </div>
+</div>

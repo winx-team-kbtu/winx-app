@@ -1,0 +1,222 @@
+.discover-page {
+  padding: 80px 16px 24px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.discover-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.discover-header h2 {
+  font-size: 26px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.discover-header p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Match toast */
+.match-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: #fff;
+  padding: 12px 28px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 4px 20px rgba(233, 30, 140, 0.4);
+  z-index: 200;
+  animation: slideDown 0.4s ease;
+  white-space: nowrap;
+}
+
+@keyframes slideDown {
+  from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+/* Card area */
+.card-area {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+/* Profile card */
+.profile-card {
+  width: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(233, 30, 140, 0.2);
+  background: var(--card-bg);
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              opacity 0.4s ease;
+}
+
+.profile-card.swipe-left {
+  transform: translateX(-140%) rotate(-20deg);
+  opacity: 0;
+}
+
+.profile-card.swipe-right {
+  transform: translateX(140%) rotate(20deg);
+  opacity: 0;
+}
+
+/* Photo section */
+.card-photo {
+  position: relative;
+  height: 340px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--pink-pale);
+}
+
+.photo-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 72px;
+}
+
+.card-gradient {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60%;
+  background: linear-gradient(to top, rgba(61, 0, 38, 0.85), transparent);
+}
+
+.card-info {
+  position: absolute;
+  bottom: 16px;
+  left: 18px;
+  right: 18px;
+  color: #fff;
+}
+
+.card-name {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.card-age {
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.card-meta {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* Card body */
+.card-body {
+  padding: 16px 18px 18px;
+}
+
+.card-bio {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.tag {
+  background: var(--pink-pale);
+  color: var(--pink);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+/* Counter */
+.card-counter {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* Swipe buttons */
+.swipe-actions {
+  display: flex;
+  gap: 28px;
+  align-items: center;
+  justify-content: center;
+}
+
+.swipe-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.swipe-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.swipe-btn.pass {
+  background: #fff;
+  color: #9E9E9E;
+  border: 2px solid #E0E0E0;
+  font-size: 22px;
+}
+.swipe-btn.pass:hover:not(:disabled) {
+  background: #FFEBEE;
+  border-color: #EF9A9A;
+  color: #EF5350;
+  transform: scale(1.08);
+}
+
+.swipe-btn.like {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  color: #fff;
+  font-size: 26px;
+  width: 72px;
+  height: 72px;
+  box-shadow: 0 4px 20px rgba(233, 30, 140, 0.4);
+}
+.swipe-btn.like:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 28px rgba(233, 30, 140, 0.55);
+}

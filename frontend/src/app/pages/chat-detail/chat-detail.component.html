@@ -1,0 +1,34 @@
+<div class="chat-page">
+  <div class="chat-topbar">
+    <a href="/chats" class="back-btn">← Back</a>
+    <span class="chat-title">Chat</span>
+  </div>
+
+  <div *ngIf="loading" class="spinner" style="margin-top: 80px;"></div>
+
+  <div *ngIf="!loading" class="messages-container">
+    <div
+      class="message"
+      *ngFor="let msg of messages"
+      [class.mine]="isMine(msg)"
+      [class.theirs]="!isMine(msg)"
+    >
+      <div class="bubble">{{ msg.content }}</div>
+      <div class="msg-time">{{ msg.created_at | date:'shortTime' }}</div>
+    </div>
+    <div #messagesEnd></div>
+  </div>
+
+  <div class="chat-input-area">
+    <input
+      type="text"
+      class="chat-input"
+      placeholder="Write something magical... ✨"
+      [(ngModel)]="newMessage"
+      (keyup.enter)="send()"
+    />
+    <button class="send-btn" (click)="send()" [disabled]="!newMessage.trim()">
+      Send ♥
+    </button>
+  </div>
+</div>

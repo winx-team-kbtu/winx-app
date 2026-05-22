@@ -1,0 +1,34 @@
+<div class="page" style="padding-top: 84px;">
+  <div class="page-header">
+    <h2>Matches 💕</h2>
+    <p>Your mutual connections</p>
+  </div>
+
+  <div *ngIf="loading" class="spinner"></div>
+
+  <div *ngIf="!loading && matches.length === 0" class="empty-state">
+    <div class="emoji">💔</div>
+    <h3>No matches yet</h3>
+    <p>Keep swiping to find your magical connection!</p>
+  </div>
+
+  <div *ngIf="!loading && matches.length > 0" class="matches-grid">
+    <div class="match-card" *ngFor="let match of matches">
+      <div class="match-info">
+        <div class="match-name">{{ match.name || 'Mystery' }}</div>
+        <div class="match-date">{{ match.created_at | date:'mediumDate' }}</div>
+      </div>
+
+      <div class="match-actions">
+        <button
+          class="btn btn-primary match-btn"
+          [disabled]="!getChatId(match)"
+          (click)="openChat(match)"
+        >
+          💬 Chat
+        </button>
+        <button class="btn btn-ghost match-btn" (click)="unmatch(match)">✕</button>
+      </div>
+    </div>
+  </div>
+</div>

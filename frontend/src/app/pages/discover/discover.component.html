@@ -1,0 +1,75 @@
+<div class="discover-page">
+  <div class="discover-header">
+    <h2>Discover ✨</h2>
+    <p>Find your magical match</p>
+  </div>
+
+  <!-- Match notification -->
+  <div class="match-toast" *ngIf="matchMessage">
+    <span>🎉</span> {{ matchMessage }}
+  </div>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="spinner"></div>
+
+  <!-- Empty -->
+  <div *ngIf="!loading && !hasMore" class="empty-state">
+    <div class="emoji">🌟</div>
+    <h3>You've seen everyone!</h3>
+    <p>Check back later for new magical matches</p>
+  </div>
+
+  <!-- Card stack -->
+  <div *ngIf="!loading && hasMore" class="card-area">
+    <ng-container *ngIf="current as prof">
+      <div
+        class="profile-card"
+        [class.swipe-left]="swipeState === 'left'"
+        [class.swipe-right]="swipeState === 'right'"
+      >
+        <!-- Photo -->
+        <div class="card-photo" [style.background-image]="getPhotoUrl(prof) ? 'url(' + getPhotoUrl(prof) + ')' : ''">
+          <div *ngIf="!getPhotoUrl(prof)" class="photo-placeholder">🧚</div>
+          <div class="card-gradient"></div>
+          <div class="card-info">
+            <div class="card-name">
+              {{ prof.name || 'Unknown' }}
+              <span *ngIf="prof.age" class="card-age">, {{ prof.age }}</span>
+            </div>
+            <div class="card-meta" *ngIf="prof.city">
+              📍 {{ prof.city }}{{ prof.country ? ', ' + prof.country : '' }}
+            </div>
+            <div class="card-meta" *ngIf="prof.looking_for">
+              💫 {{ prof.looking_for }}
+            </div>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="card-body">
+          <p *ngIf="prof.about_me" class="card-bio">{{ prof.about_me }}</p>
+
+          <div class="card-tags" *ngIf="prof.shared_interests > 0">
+            <span class="tag">{{ prof.shared_interests }} shared interests</span>
+          </div>
+          <div class="card-tags" *ngIf="prof.distance_km != null">
+            <span class="tag">{{ prof.distance_km | number:'1.0-0' }} km away</span>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Swipe counter -->
+    <div class="card-counter">{{ currentIndex + 1 }} / {{ profiles.length }}</div>
+
+    <!-- Action buttons -->
+    <div class="swipe-actions">
+      <button class="swipe-btn pass" (click)="swipeLeft()" [disabled]="swipeState !== 'idle'">
+        ✕
+      </button>
+      <button class="swipe-btn like" (click)="swipeRight()" [disabled]="swipeState !== 'idle'">
+        ♥
+      </button>
+    </div>
+  </div>
+</div>

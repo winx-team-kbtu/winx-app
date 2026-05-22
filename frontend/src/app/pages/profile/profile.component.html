@@ -1,0 +1,141 @@
+<div class="page" style="padding-top: 84px; max-width: 640px;">
+  <div class="page-header">
+    <h2>My Profile 👤</h2>
+    <p>Fill in your details to get better matches</p>
+  </div>
+
+  <div *ngIf="loading" class="spinner"></div>
+
+  <form *ngIf="!loading" (ngSubmit)="save()" #form="ngForm">
+
+    <!-- Photo -->
+    <div class="card mb-16">
+      <div class="section-title">Profile Photo</div>
+      <div class="photo-section">
+        <div class="profile-photo" [style.background-image]="photoUrl ? 'url(' + photoUrl + ')' : ''">
+          <span *ngIf="!photoUrl" class="photo-emoji">🧚</span>
+        </div>
+        <div class="photo-actions">
+          <label class="btn btn-outline" for="photoInput">
+            {{ photoUploading ? 'Uploading...' : '📷 Upload Photo' }}
+          </label>
+          <input id="photoInput" type="file" accept="image/*" (change)="onPhotoSelected($event)" style="display:none">
+          <p class="photo-hint">JPEG or PNG, square preferred</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Basic Info -->
+    <div class="card mb-16">
+      <div class="section-title">Basic Info</div>
+
+      <div class="form-group">
+        <label>First Name</label>
+        <input type="text" class="form-control" [(ngModel)]="profile.first_name" name="first_name" placeholder="Your name" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Birth Date</label>
+          <input type="date" class="form-control" [(ngModel)]="profile.birth_date" name="birth_date" />
+        </div>
+        <div class="form-group">
+          <label>Gender</label>
+          <select class="form-control" [(ngModel)]="profile.gender" name="gender">
+            <option value="">— Select —</option>
+            <option *ngFor="let g of genders" [value]="g">{{ g | titlecase }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>About Me</label>
+        <textarea
+          class="form-control"
+          [(ngModel)]="profile.about_me"
+          name="about_me"
+          rows="3"
+          placeholder="Tell others something magical about yourself..."
+          maxlength="2000"
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Work & Education -->
+    <div class="card mb-16">
+      <div class="section-title">Work & Education</div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Job Title</label>
+          <input type="text" class="form-control" [(ngModel)]="profile.job_title" name="job_title" placeholder="Software Engineer" />
+        </div>
+        <div class="form-group">
+          <label>Company</label>
+          <input type="text" class="form-control" [(ngModel)]="profile.company" name="company" placeholder="Winx Inc." />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>School / University</label>
+        <input type="text" class="form-control" [(ngModel)]="profile.school" name="school" placeholder="KBTU" />
+      </div>
+    </div>
+
+    <!-- Location -->
+    <div class="card mb-16">
+      <div class="section-title">Location</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" class="form-control" [(ngModel)]="profile.location!.city" name="city" placeholder="Almaty" required />
+        </div>
+        <div class="form-group">
+          <label>Country</label>
+          <input type="text" class="form-control" [(ngModel)]="profile.location!.country" name="country" placeholder="Kazakhstan" />
+        </div>
+      </div>
+      <button type="button" class="btn btn-outline" (click)="detectLocation()">
+        📍 Detect My Location
+      </button>
+    </div>
+
+    <!-- Looking For -->
+    <div class="card mb-16">
+      <div class="section-title">Looking For</div>
+      <div class="form-group">
+        <label>Relationship Goal</label>
+        <select class="form-control" [(ngModel)]="profile.looking_for" name="looking_for">
+          <option value="">— Select —</option>
+          <option *ngFor="let opt of lookingForOptions" [value]="opt">
+            {{ formatOption(opt) }}
+          </option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Interests -->
+    <div class="card mb-16" *ngIf="interests.length > 0">
+      <div class="section-title">Interests <span class="interest-count">({{ profile.interest_ids?.length || 0 }}/20)</span></div>
+      <div class="interests-grid">
+        <button
+          type="button"
+          class="interest-chip"
+          *ngFor="let interest of interests"
+          [class.selected]="isInterestSelected(interest.id)"
+          (click)="toggleInterest(interest.id)"
+        >
+          {{ interest.name }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div *ngIf="saveError" class="error-msg">{{ saveError }}</div>
+    <div *ngIf="saveSuccess" class="success-msg">✨ Profile saved successfully!</div>
+
+    <button type="submit" class="btn btn-primary w-full" [disabled]="saving">
+      {{ saving ? 'Saving...' : 'Save Profile ✨' }}
+    </button>
+  </form>
+</div>

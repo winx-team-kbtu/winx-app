@@ -1,0 +1,105 @@
+.page-header {
+  margin-bottom: 24px;
+}
+.page-header h2 {
+  font-size: 26px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.page-header p { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
+
+.section-title {
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--pink);
+  margin-bottom: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Photo section */
+.photo-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.profile-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--pink-pale);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 3px solid var(--border);
+}
+
+.photo-emoji { font-size: 36px; }
+
+.photo-actions { display: flex; flex-direction: column; gap: 8px; }
+.photo-hint { font-size: 12px; color: var(--text-muted); }
+
+/* Interests */
+.interest-count { font-weight: 400; color: var(--text-muted); text-transform: none; }
+
+.interests-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.interest-chip {
+  padding: 7px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.interest-chip:hover { border-color: var(--pink); color: var(--pink); }
+.interest-chip.selected {
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  border-color: transparent;
+  color: #fff;
+}
+
+.success-msg {
+  background: #E8F5E9;
+  color: #2E7D32;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+select.form-control {
+  appearance: auto;
+  cursor: pointer;
+}
+
+@media (max-width: 480px) {
+  .form-row { grid-template-columns: 1fr; }
+}

@@ -1,0 +1,117 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(233, 30, 140, 0.08);
+}
+
+.navbar-brand {
+  font-size: 22px;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--pink), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: -0.5px;
+}
+
+.sparkle {
+  font-size: 18px;
+  -webkit-text-fill-color: var(--pink);
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.2) rotate(20deg); }
+}
+
+.navbar-links {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.nav-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  color: var(--pink);
+  background: var(--pink-pale);
+}
+
+.nav-link.active {
+  color: var(--pink);
+  background: linear-gradient(135deg, rgba(233, 30, 140, 0.1), rgba(156, 39, 176, 0.1));
+}
+
+.nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.nav-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.logout-btn {
+  background: none;
+  border: 1.5px solid var(--border);
+  color: var(--text-muted);
+  padding: 7px 16px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+/* Mobile bottom nav */
+@media (max-width: 640px) {
+  .navbar {
+    top: auto;
+    bottom: 0;
+    border-top: 1px solid var(--border);
+    border-bottom: none;
+    box-shadow: 0 -2px 12px rgba(233, 30, 140, 0.08);
+    padding: 0 8px;
+    height: 60px;
+  }
+
+  .navbar-brand { display: none; }
+  .navbar-links { flex: 1; justify-content: space-around; }
+  .logout-btn { padding: 6px 10px; font-size: 12px; }
+}

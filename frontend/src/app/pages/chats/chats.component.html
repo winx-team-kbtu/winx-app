@@ -1,0 +1,31 @@
+<div class="page" style="padding-top: 84px;">
+  <div class="page-header">
+    <h2>Chats 💬</h2>
+    <p>Your conversations</p>
+  </div>
+
+  <div *ngIf="loading" class="spinner"></div>
+
+  <div *ngIf="!loading && chats.length === 0" class="empty-state">
+    <div class="emoji">💬</div>
+    <h3>No chats yet</h3>
+    <p>Match with someone to start chatting!</p>
+  </div>
+
+  <div *ngIf="!loading" class="chats-list">
+    <a
+      class="chat-row"
+      *ngFor="let chat of chats"
+      [routerLink]="['/chats', chat.id]"
+    >
+      <div class="chat-avatar">
+        <span class="avatar-letter">{{ getInitial(chat) }}</span>
+      </div>
+
+      <div class="chat-meta">
+        <div class="chat-name">{{ getChatName(chat) }}</div>
+        <div class="chat-last">Say hello! 👋</div>
+      </div>
+    </a>
+  </div>
+</div>

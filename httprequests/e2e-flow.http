@@ -1,7 +1,7 @@
-### ===================================================================
-### END-TO-END FLOW: Register → Login → Profile → Match → Chat
-### Run requests sequentially from top to bottom.
-### ===================================================================
+## ===================================================================
+## END-TO-END FLOW: Register → Login → Profile → Match → Chat
+## Run requests sequentially from top to bottom.
+## ===================================================================
 
 ### Step 1: Register first user
 POST {{gateway_url}}/api/v1/register
