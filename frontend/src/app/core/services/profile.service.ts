@@ -54,8 +54,8 @@ export class ProfileService {
     return this.http.post<ApiResponse<Profile>>('/api/v1/profile/store', profile);
   }
 
-  getPhotos() {
-    return this.http.get<ApiResponse<Photo[]>>('/api/v1/profile/photo');
+  getPhoto() {
+    return this.http.get<ApiResponse<Photo>>('/api/v1/profile/photo');
   }
 
   storePhoto(file: File) {

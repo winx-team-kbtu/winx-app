@@ -45,11 +45,11 @@ export class ProfileComponent implements OnInit {
       next: (res) => (this.interests = res.data ?? []),
     });
 
-    this.profileService.getPhotos().subscribe({
+    this.profileService.getPhoto().subscribe({
       next: (res) => {
-        const first = (res.data ?? [])[0];
-        if (first) this.photoUrl = first.url;
+        if (res.data?.url) this.photoUrl = res.data.url;
       },
+      error: () => {},
     });
   }
 
