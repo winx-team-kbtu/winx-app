@@ -48,6 +48,6 @@ graylog:
   source: notification
 
 resend:
-  api_key: ""
-  from_email: onboarding@resend.dev
+  api_key:
+  from_email: no-reply@winxx.tech
   from_name: Winx
