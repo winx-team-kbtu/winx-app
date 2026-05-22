@@ -3,6 +3,7 @@ package recommendation
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -19,6 +20,8 @@ import (
 	mongodriver "go.mongodb.org/mongo-driver/v2/mongo"
 	"gorm.io/gorm"
 )
+
+var ErrProfileIncomplete = errors.New("profile incomplete: set your name, birth date, gender, and who you're interested in")
 
 const (
 	cacheTTL    = 3 * time.Minute
@@ -76,9 +79,13 @@ func (s *service) List(ctx context.Context, input svcDto.ListDTO) ([]svcDto.Scor
 		uc.Latitude, uc.Longitude,
 	)
 
-	// 3. Own MongoDB profile (best-effort — non-fatal)
+	// 3. Own MongoDB profile — required for completeness check
 	myMeta, _ := s.metaRepo.GetByUserID(ctx, input.UserID)
-	log.Printf("[rec] userID=%d myMeta: gender=%q", input.UserID, myMeta.Gender)
+	log.Printf("[rec] userID=%d myMeta: gender=%q interestedIn=%v birthDate=%q", input.UserID, myMeta.Gender, myMeta.InterestedIn, myMeta.BirthDate)
+
+	if myMeta.BirthDate == "" || myMeta.Gender == "" || len(myMeta.InterestedIn) == 0 {
+		return nil, ErrProfileIncomplete
+	}
 
 	// 4. SQL scoring query
 	candidates, err := s.candidateRepo.Score(ctx, input.UserID, uc)

@@ -21,6 +21,7 @@ export class ProfileComponent implements OnInit {
   photoUrl = '';
 
   genders = ['man', 'woman', 'non_binary', 'other'];
+  interestedInOptions = ['man', 'woman', 'non_binary', 'everyone'];
   lookingForOptions = [
     'long_term_partner', 'long_term_open_to_short',
     'short_term_open_to_long_term', 'short_term', 'new_friends', 'still_figuring_it_out',
@@ -58,6 +59,19 @@ export class ProfileComponent implements OnInit {
 
   isInterestSelected(id: number): boolean {
     return this.profile.interest_ids?.includes(id) ?? false;
+  }
+
+  isInterestedInSelected(opt: string): boolean {
+    return this.profile.interested_in?.includes(opt) ?? false;
+  }
+
+  toggleInterestedIn(opt: string): void {
+    const current = this.profile.interested_in ?? [];
+    if (current.includes(opt)) {
+      this.profile.interested_in = current.filter(v => v !== opt);
+    } else {
+      this.profile.interested_in = [...current, opt];
+    }
   }
 
   toggleInterest(id: number): void {
