@@ -70,6 +70,6 @@ export class ProfileService {
   }
 
   lookupLocationByIP() {
-    return this.http.get<ApiResponse<{ city: string; country: string; latitude: number; longitude: number }>>('/api/v1/profile/location/ip');
+    return this.http.get<ApiResponse<{ city: string; country: string; current_location: { latitude: number; longitude: number } }>>('/api/v1/profile/location/ip');
   }
 }

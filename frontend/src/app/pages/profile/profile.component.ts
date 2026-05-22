@@ -91,8 +91,8 @@ export class ProfileComponent implements OnInit {
           this.profile.location.city = res.data.city;
           this.profile.location.country = res.data.country;
           this.profile.location.current_location = {
-            latitude: res.data.latitude,
-            longitude: res.data.longitude,
+            latitude: res.data.current_location.latitude,
+            longitude: res.data.current_location.longitude,
           };
         } else {
           this.setDefaultLocation();
