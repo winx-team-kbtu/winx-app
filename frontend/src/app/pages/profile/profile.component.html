@@ -49,6 +49,21 @@
       </div>
 
       <div class="form-group">
+        <label>Interested In</label>
+        <div class="interests-grid">
+          <button
+            type="button"
+            class="interest-chip"
+            *ngFor="let opt of interestedInOptions"
+            [class.selected]="isInterestedInSelected(opt)"
+            (click)="toggleInterestedIn(opt)"
+          >
+            {{ formatOption(opt) }}
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label>About Me</label>
         <textarea
           class="form-control"

@@ -1,6 +1,7 @@
 package recommendation
 
 import (
+	"errors"
 	"net/http"
 
 	headercontract "winx-recommendation/internal/app/core/contracts/microservices/header-contract"
@@ -46,6 +47,10 @@ func (h *Handler) List(ctx *gin.Context) {
 		Offset: payload.Offset,
 	})
 	if err != nil {
+		if errors.Is(err, service.ErrProfileIncomplete) {
+			ctx.JSON(http.StatusUnprocessableEntity, response.ErrorResponse(err.Error()))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		errorhandler.FailOnError(err, "recommendations list error")
 		return
