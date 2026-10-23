@@ -8,12 +8,14 @@ import (
 	corevalidation "winx-profile/internal/app/core/validation"
 	academicHandler "winx-profile/internal/app/domain/handlers/academic"
 	courseHandler "winx-profile/internal/app/domain/handlers/course"
+	deckHandler "winx-profile/internal/app/domain/handlers/deck"
 	interestHandler "winx-profile/internal/app/domain/handlers/interest"
 	locationHandler "winx-profile/internal/app/domain/handlers/location"
 	photoHandler "winx-profile/internal/app/domain/handlers/photo"
 	profileHandler "winx-profile/internal/app/domain/handlers/profile"
 	academicService "winx-profile/internal/app/domain/services/academic"
 	courseService "winx-profile/internal/app/domain/services/course"
+	deckService "winx-profile/internal/app/domain/services/deck"
 	interestService "winx-profile/internal/app/domain/services/interest"
 	locationService "winx-profile/internal/app/domain/services/location"
 	photoService "winx-profile/internal/app/domain/services/photo"
@@ -70,6 +72,7 @@ func (s *Server) initDomainRoutes() error {
 	s.initInterestRoutes(interestHandler.NewHandler(interests))
 	s.initLocationRoutes(locationHandler.NewHandler(locations))
 	s.initAcademicRoutes(academicHandler.NewHandler(academicService.NewService(s.pgdb), binder))
+	s.initDeckRoutes(deckHandler.NewHandler(deckService.NewService(s.pgdb), binder))
 	s.initCourseRoutes(courseHandler.NewHandler(courseService.NewService(s.pgdb), binder))
 
 	return nil
@@ -108,4 +111,9 @@ func (s *Server) initAcademicRoutes(handler *academicHandler.Handler) {
 	academicRoutes := authUserRouter.Group("/profile/academic")
 	academicRoutes.GET("/me", handler.GetMe)
 	academicRoutes.PUT("/me", handler.SaveMe)
+}
+
+func (s *Server) initDeckRoutes(handler *deckHandler.Handler) {
+	deckRoutes := authUserRouter.Group("/profile/academic")
+	deckRoutes.GET("/deck", handler.List)
 }
