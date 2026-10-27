@@ -7,6 +7,7 @@ import (
 	"winx-profile/internal/app/core/http/middleware"
 	corevalidation "winx-profile/internal/app/core/validation"
 	academicHandler "winx-profile/internal/app/domain/handlers/academic"
+	choiceHandler "winx-profile/internal/app/domain/handlers/choice"
 	courseHandler "winx-profile/internal/app/domain/handlers/course"
 	deckHandler "winx-profile/internal/app/domain/handlers/deck"
 	interestHandler "winx-profile/internal/app/domain/handlers/interest"
@@ -14,6 +15,7 @@ import (
 	photoHandler "winx-profile/internal/app/domain/handlers/photo"
 	profileHandler "winx-profile/internal/app/domain/handlers/profile"
 	academicService "winx-profile/internal/app/domain/services/academic"
+	choiceService "winx-profile/internal/app/domain/services/choice"
 	courseService "winx-profile/internal/app/domain/services/course"
 	deckService "winx-profile/internal/app/domain/services/deck"
 	interestService "winx-profile/internal/app/domain/services/interest"
@@ -73,6 +75,7 @@ func (s *Server) initDomainRoutes() error {
 	s.initLocationRoutes(locationHandler.NewHandler(locations))
 	s.initAcademicRoutes(academicHandler.NewHandler(academicService.NewService(s.pgdb), binder))
 	s.initDeckRoutes(deckHandler.NewHandler(deckService.NewService(s.pgdb), binder))
+	s.initChoiceRoutes(choiceHandler.NewHandler(choiceService.NewService(s.pgdb), binder))
 	s.initCourseRoutes(courseHandler.NewHandler(courseService.NewService(s.pgdb), binder))
 
 	return nil
@@ -116,4 +119,10 @@ func (s *Server) initAcademicRoutes(handler *academicHandler.Handler) {
 func (s *Server) initDeckRoutes(handler *deckHandler.Handler) {
 	deckRoutes := authUserRouter.Group("/profile/academic")
 	deckRoutes.GET("/deck", handler.List)
+}
+
+func (s *Server) initChoiceRoutes(handler *choiceHandler.Handler) {
+	choiceRoutes := authUserRouter.Group("/profile/academic")
+	choiceRoutes.PUT("/choices", handler.Store)
+	choiceRoutes.GET("/shortlist", handler.Shortlist)
 }
