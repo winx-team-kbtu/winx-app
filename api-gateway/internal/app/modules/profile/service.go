@@ -12,6 +12,7 @@ type Service interface {
 	StorePhoto(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ListInterests(ctx context.Context, headers map[string]string, query url.Values) (Response, error)
 	LookupLocationByIP(ctx context.Context, headers map[string]string) (Response, error)
+	Academic(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string, query url.Values) (Response, error)
 }
 
 type service struct {
@@ -44,4 +45,8 @@ func (s *service) ListInterests(ctx context.Context, headers map[string]string, 
 
 func (s *service) LookupLocationByIP(ctx context.Context, headers map[string]string) (Response, error) {
 	return s.client.LookupLocationByIP(ctx, headers)
+}
+
+func (s *service) Academic(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string, query url.Values) (Response, error) {
+	return s.client.Academic(ctx, method, path, body, contentType, headers, query)
 }
