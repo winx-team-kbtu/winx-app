@@ -44,6 +44,11 @@ func (m *MockClient) LookupLocationByIP(ctx context.Context, headers map[string]
 	return args.Get(0).(Response), args.Error(1)
 }
 
+func (m *MockClient) Academic(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string, query url.Values) (Response, error) {
+	args := m.Called(ctx, method, path, body, contentType, headers, query)
+	return args.Get(0).(Response), args.Error(1)
+}
+
 func TestService_GetMe(t *testing.T) {
 	tests := []struct {
 		name     string
