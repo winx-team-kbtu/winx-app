@@ -26,6 +26,10 @@ func openDB(t *testing.T) *gorm.DB {
 		t.Fatal(err)
 	}
 
+	for _, id := range []int{1, 2} {
+		db.Exec(`INSERT INTO users (id, email, password) VALUES (?, 'it-' || (?::bigint)::text || '@test.io', 'x') ON CONFLICT DO NOTHING`, id, id)
+	}
+
 	return db
 }
 
