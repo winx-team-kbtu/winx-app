@@ -57,6 +57,8 @@ func (r *repository) ListCandidates(ctx context.Context, userID, courseID, limit
 		  WHERE uc.course_id = ? AND uc.user_id <> ?
 		    AND NOT EXISTS (SELECT 1 FROM course_choices cc
 		                     WHERE cc.user_id = ? AND cc.candidate_id = uc.user_id AND cc.course_id = uc.course_id)
+		    AND NOT EXISTS (SELECT 1 FROM team_members tm
+		                     WHERE tm.user_id = uc.user_id AND tm.course_id = uc.course_id)
 		  ORDER BY uc.user_id
 		  LIMIT ? OFFSET ?`,
 		courseID, userID, userID, limit, offset,
