@@ -11,10 +11,11 @@ import (
 )
 
 type fakeRepo struct {
-	selected map[[2]int64]bool
-	teams    map[[2]int64]models.Team // keyed by (user, course)
-	codes    map[string]bool
-	attempts []string
+	selected  map[[2]int64]bool
+	teams     map[[2]int64]models.Team // keyed by (user, course)
+	codes     map[string]bool
+	attempts  []string
+	joinCodes []string
 }
 
 func newFakeRepo() *fakeRepo {
@@ -54,6 +55,31 @@ func (f *fakeRepo) GetByUserCourse(_ context.Context, userID, courseID int64) (m
 	}
 
 	return t, nil
+}
+
+func (f *fakeRepo) Join(_ context.Context, userID int64, code string) (models.Team, error) {
+	f.joinCodes = append(f.joinCodes, code)
+
+	for _, team := range f.teams {
+		if team.JoinCode != code {
+			continue
+		}
+
+		if !f.selected[[2]int64{userID, team.CourseID}] {
+			return models.Team{}, repository.ErrCourseNotSelected
+		}
+
+		if _, ok := f.teams[[2]int64{userID, team.CourseID}]; ok {
+			return models.Team{}, repository.ErrAlreadyInTeam
+		}
+
+		team.MemberCount++
+		f.teams[[2]int64{userID, team.CourseID}] = team
+
+		return team, nil
+	}
+
+	return models.Team{}, repository.ErrNotFound
 }
 
 func fixedCodes(codes ...string) func() (string, error) {
@@ -175,5 +201,75 @@ func TestGenerateCode_FormatAndAlphabet(t *testing.T) {
 func TestGetMine_NotFound(t *testing.T) {
 	if _, err := NewServiceWithRepository(newFakeRepo(), fixedCodes("AAAAAA")).GetMine(context.Background(), 1, 10); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func newTeamWithCode(t *testing.T, repo *fakeRepo) {
+	t.Helper()
+
+	if _, err := NewServiceWithRepository(repo, fixedCodes("ABC234")).Create(context.Background(), 1, 10, "Alpha"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestJoin_AddsMemberAndNormalizesCode(t *testing.T) {
+	repo := newFakeRepo()
+	newTeamWithCode(t, repo)
+
+	team, err := NewServiceWithRepository(repo, fixedCodes("X")).Join(context.Background(), 2, "  abc234 ")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if team.MemberCount != 2 || team.CourseID != 10 {
+		t.Fatalf("unexpected team %+v", team)
+	}
+
+	if got := repo.joinCodes[len(repo.joinCodes)-1]; got != "ABC234" {
+		t.Fatalf("code must be normalized before lookup, got %q", got)
+	}
+}
+
+func TestJoin_Rejections(t *testing.T) {
+	cases := []struct {
+		name string
+		user int64
+		code string
+		want error
+	}{
+		{"unknown code", 2, "ZZZZZZ", ErrNotFound},
+		{"already a member", 1, "ABC234", ErrAlreadyInTeam},
+		{"user did not select the team's course", 3, "ABC234", ErrCourseNotSelected},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			repo := newFakeRepo()
+			newTeamWithCode(t, repo)
+
+			before := repo.teams[[2]int64{1, 10}].MemberCount
+
+			if _, err := NewServiceWithRepository(repo, fixedCodes("X")).Join(context.Background(), tc.user, tc.code); !errors.Is(err, tc.want) {
+				t.Fatalf("expected %v, got %v", tc.want, err)
+			}
+
+			if got := repo.teams[[2]int64{1, 10}].MemberCount; got != before {
+				t.Fatalf("rejected join must not mutate the team: %d -> %d", before, got)
+			}
+		})
+	}
+}
+
+func TestJoin_MalformedCodeNeverReachesRepository(t *testing.T) {
+	for _, code := range []string{"", "   ", "ABC", "ABC2345", "ABC-23"} {
+		repo := newFakeRepo()
+
+		if _, err := NewServiceWithRepository(repo, fixedCodes("X")).Join(context.Background(), 2, code); !errors.Is(err, ErrNotFound) {
+			t.Fatalf("%q: expected ErrNotFound, got %v", code, err)
+		}
+
+		if len(repo.joinCodes) != 0 {
+			t.Fatalf("%q: malformed code reached the repository", code)
+		}
 	}
 }
