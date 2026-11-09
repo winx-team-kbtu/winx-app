@@ -12,6 +12,7 @@ type Resource struct {
 	Name        string    `json:"name"`
 	JoinCode    string    `json:"join_code"`
 	MemberCount int64     `json:"member_count"`
+	Status      string    `json:"status"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
@@ -22,6 +23,7 @@ func NewResource(item models.Team) *Resource {
 		Name:        item.Name,
 		JoinCode:    item.JoinCode,
 		MemberCount: item.MemberCount,
+		Status:      string(item.Status()),
 		CreatedAt:   item.CreatedAt,
 	}
 }
@@ -42,6 +44,8 @@ type RosterMember struct {
 type RosterResource struct {
 	TeamID   int64          `json:"team_id"`
 	TeamName string         `json:"team_name"`
+	Size     int            `json:"size"`
+	Status   string         `json:"status"`
 	Course   RosterCourse   `json:"course"`
 	Members  []RosterMember `json:"members"`
 }
@@ -66,6 +70,8 @@ func NewRosterResource(item models.TeamRoster) *RosterResource {
 	return &RosterResource{
 		TeamID:   item.TeamID,
 		TeamName: item.TeamName,
+		Size:     len(members),
+		Status:   string(item.Status()),
 		Course:   RosterCourse{ID: item.CourseID, Code: item.CourseCode, Title: item.CourseTitle},
 		Members:  members,
 	}
