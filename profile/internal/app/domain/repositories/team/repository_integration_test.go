@@ -360,3 +360,41 @@ func TestRepository_FullTeamRejectsWithoutMutation(t *testing.T) {
 		t.Fatalf("roster changed by a rejected join: %d", got)
 	}
 }
+
+func TestRepository_RosterShowsAcademicFieldsToMembersOnly(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+
+	db.Exec(`INSERT INTO profiles (user_id, email, name) VALUES (401, 'secret-a@x.io', 'Ann'), (402, 'secret-b@x.io', 'Bob')`)
+	db.Exec(`INSERT INTO academic_profiles (user_id, skills, preferred_role) VALUES (401, '["Go"]', 'Backend')`)
+
+	if _, err := repo.Create(ctx, 401, courseID, "Alpha", "ROST22"); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := repo.Join(ctx, 402, "ROST22"); err != nil {
+		t.Fatal(err)
+	}
+
+	roster, err := repo.Roster(ctx, 402, courseID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if roster.TeamName != "Alpha" || roster.CourseCode != "TSTTEAM" || len(roster.Members) != 2 {
+		t.Fatalf("unexpected roster %+v", roster)
+	}
+
+	if roster.Members[0].UserID != 401 || roster.Members[0].Name != "Ann" || roster.Members[0].PreferredRole != "Backend" || len(roster.Members[0].Skills) != 1 {
+		t.Fatalf("creator entry wrong: %+v", roster.Members[0])
+	}
+
+	if roster.Members[1].UserID != 402 || roster.Members[1].Skills == nil || len(roster.Members[1].Skills) != 0 {
+		t.Fatalf("member without academic profile must have empty skills: %+v", roster.Members[1])
+	}
+
+	if _, err := repo.Roster(ctx, 403, courseID); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("outsider must get ErrNotFound, got %v", err)
+	}
+}
