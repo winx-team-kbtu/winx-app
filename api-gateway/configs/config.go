@@ -15,6 +15,14 @@ type (
 		App      app      `yaml:"app"`
 		Services services `yaml:"services"`
 		Swagger  swagger  `yaml:"swagger"`
+		Pilot    pilot    `yaml:"pilot"`
+	}
+
+	pilot struct {
+		// Mode disables the legacy Social features (photos, swipes, matches,
+		// recommendations, chat) at the gateway. It defaults to true so a missing
+		// setting never exposes Social features to pilot users.
+		Mode bool `yaml:"mode"`
 	}
 
 	app struct {
@@ -50,6 +58,12 @@ func InitConfig() {
 
 	if os.Getenv("APP_ENV") != "" {
 		configName += fmt.Sprintf(".%s", os.Getenv("APP_ENV"))
+	}
+
+	viper.SetDefault("pilot.mode", true)
+
+	if err := viper.BindEnv("pilot.mode", "PILOT_MODE"); err != nil {
+		log.Fatal(err)
 	}
 
 	viper.SetConfigName(configName)
@@ -94,6 +108,9 @@ func InitConfig() {
 				URL:    viper.GetString("services.chat.url"),
 				APIKey: viper.GetString("services.chat.api_key"),
 			},
+		},
+		Pilot: pilot{
+			Mode: viper.GetBool("pilot.mode"),
 		},
 		Swagger: swagger{
 			Title:       viper.GetString("swagger.title"),
