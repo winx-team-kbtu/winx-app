@@ -16,6 +16,8 @@ import (
 type Storage interface {
 	Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error)
 	SignedGetURL(ctx context.Context, key string, expires time.Duration) (string, error)
+	// Delete removes an object. S3 treats deleting a missing key as success.
+	Delete(ctx context.Context, key string) error
 	Bucket() string
 }
 
@@ -88,6 +90,18 @@ func (c *Client) SignedGetURL(ctx context.Context, key string, expires time.Dura
 	}
 
 	return req.URL, nil
+}
+
+func (c *Client) Delete(ctx context.Context, key string) error {
+	_, err := c.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &c.bucket,
+		Key:    &key,
+	})
+	if err != nil {
+		return fmt.Errorf("delete s3 object: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) Bucket() string {
