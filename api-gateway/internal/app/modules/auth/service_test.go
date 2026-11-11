@@ -64,6 +64,11 @@ func TestNewService(t *testing.T) {
 	assert.NotNil(t, service)
 }
 
+func (m *MockClient) DeleteAccount(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	args := m.Called(ctx, body, contentType, headers)
+	return args.Get(0).(Response), args.Error(1)
+}
+
 func TestService_Login(t *testing.T) {
 	tests := []struct {
 		name        string

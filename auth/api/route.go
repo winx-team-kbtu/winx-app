@@ -1,13 +1,20 @@
 package api
 
 import (
+	"time"
+
+	profileclient "auth/adapters/profile-client"
+	"auth/configs"
 	"auth/internal/app/core/http/middleware"
 	"auth/internal/app/core/validation"
 	authHandler "auth/internal/app/domain/handlers"
+	accountHandler "auth/internal/app/domain/handlers/account"
 	passwordHandler "auth/internal/app/domain/handlers/password"
 	roleHandler "auth/internal/app/domain/handlers/role"
 	userHandler "auth/internal/app/domain/handlers/user"
+	deletionRepository "auth/internal/app/domain/repositories/deletion"
 	authService "auth/internal/app/domain/services"
+	deletionService "auth/internal/app/domain/services/deletion"
 	passwordService "auth/internal/app/domain/services/password"
 	roleService "auth/internal/app/domain/services/role"
 	tokenService "auth/internal/app/domain/services/token"
@@ -69,7 +76,16 @@ func (s *Server) initDomainRoutes() {
 	svcRole := roleService.NewService(s.pgdb)
 	handlerRole := roleHandler.NewHandler(svcRole, binder)
 
+	accountService := deletionService.NewService(
+		deletionRepository.NewRepository(s.pgdb),
+		deletionRepository.NewRepository(s.pgdb),
+		s.cache,
+		profileclient.New(configs.Config.Services.Profile.URL, configs.Config.Services.Profile.APIKey, 30*time.Second),
+	)
+	handlerAccount := accountHandler.NewHandler(accountService, binder)
+
 	s.initAuthRoutes(handlerAuth, authUserMiddleware)
+	s.initAccountRoutes(handlerAccount)
 	s.initPasswordRoutes(handlerPassword)
 	s.initUserRoutes(handlerUser)
 	s.initRoleRoutes(handlerRole)
@@ -106,4 +122,8 @@ func (s *Server) initPasswordRoutes(handler *passwordHandler.Handler) {
 	passwordRoutes.POST("/reset", handler.ResetPassword)
 	passwordRoutes.POST("/change", handler.ChangePassword)
 	passwordRoutes.POST("/verify-pin", handler.VerifyPin)
+}
+
+func (s *Server) initAccountRoutes(handler *accountHandler.Handler) {
+	authUserRouter.DELETE("/account", handler.Delete)
 }
