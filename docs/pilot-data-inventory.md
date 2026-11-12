@@ -97,16 +97,30 @@ missing, so Social stays off unless someone sets `PILOT_MODE=false` on purpose. 
 answer 404 and never reach the downstream services. The matching tables (`swipes`, `matches`, `chats`,
 `messages`, `recommendations`) must stay empty for pilot users.
 
-## 8. Findings
+## 8. Findings and how account deletion covers them
 
-1. Deleting the `users` row removes only the foreign-keyed profile and academic tables.
-   Sessions, tokens, password resets, notifications, Mongo profile, Redis keys, S3 objects and the
-   Social tables survive. Account deletion (SCRUM-53) must clean these explicitly.
-2. A team can be left empty after its last member is deleted and must be removed explicitly.
-3. Redis session keys are short lived but valid until TTL, so deletion must revoke them directly.
-4. `match.created` consumers can recreate Social rows after deletion.
-5. Out of scope here and to be documented separately: database backups, Kafka retention, and
-   Graylog/OpenSearch logs, which can contain email addresses.
+`DELETE /api/v1/account` (SCRUM-53, SCRUM-54) closes the gaps found in this inventory. The user
+confirms with their password; auth then blocks the account, revokes sessions, asks the profile
+service to clean up and finally deletes the user row.
+
+| Gap | Covered by |
+|---|---|
+| Sessions valid until TTL | auth deletes `users:user_id:<id>`, `users:user_email:<id>`, every `users:access_token:<token>` and the `oauth_tokens` rows; sign-in is blocked by `users.deletion_requested_at` |
+| `oauth_tokens`, `password_resets`, `notifications` survive | deleted by auth in the same transaction as the user row |
+| Mongo profile, S3 photo objects | profile service endpoint `DELETE /internal/users/:id` (API key only, not proxied by the gateway) |
+| Profile and academic PostgreSQL rows | profile service deletes them explicitly; the foreign keys are a second safety net |
+| Teams | the user leaves their teams, remaining teams shrink (size and status are derived), teams left empty are removed under the same row lock joins use |
+| Legacy Social tables (`swipes`, `matches`, `chats`, `messages`, `recommendations`) | deleted by auth if rows exist (skipped when a table is absent); pilot mode keeps them empty |
+| Redis `pop:<id>`, `rec:<id>` (match) | **not** deleted; they expire by TTL and are Social data excluded from the pilot |
+| Late Kafka events | notification and chat consumers skip events about accounts that are gone or being deleted |
+
+A failed step never reports success. The account stays blocked with revoked sessions, the API
+answers 202 with `status: pending`, and a worker in auth retries every minute with a growing wait
+(30 seconds doubling up to one hour). The count and the last error are stored on the user row
+(`deletion_attempts`, `deletion_last_error`). Every step is idempotent.
+
+Not covered and to be documented separately: database backups, Kafka retention, and
+Graylog/OpenSearch logs, which can contain email addresses.
 
 ## 9. Manual checks for the stores SQL cannot see
 
