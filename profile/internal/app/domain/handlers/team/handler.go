@@ -30,7 +30,7 @@ func statusFor(err error) (int, bool) {
 		return http.StatusForbidden, true
 	case errors.Is(err, service.ErrNotFound):
 		return http.StatusNotFound, true
-	case errors.Is(err, service.ErrAlreadyInTeam):
+	case errors.Is(err, service.ErrAlreadyInTeam), errors.Is(err, service.ErrTeamFull):
 		return http.StatusConflict, true
 	case errors.Is(err, service.ErrInvalidName):
 		return http.StatusUnprocessableEntity, true

@@ -40,7 +40,7 @@ func setup(t *testing.T) (*gorm.DB, int64) {
 
 	cleanup := func() {
 		db.Exec(`DELETE FROM teams WHERE course_id IN (SELECT id FROM courses WHERE code = 'TSTTEAM')`)
-		db.Exec(`DELETE FROM users WHERE id BETWEEN 401 AND 404`)
+		db.Exec(`DELETE FROM users WHERE id BETWEEN 401 AND 404 OR id BETWEEN 410 AND 429`)
 		db.Exec(`DELETE FROM courses WHERE code = 'TSTTEAM'`)
 	}
 	cleanup()
@@ -227,5 +227,136 @@ func TestRepository_JoinByCode(t *testing.T) {
 
 	if members != 2 {
 		t.Fatalf("rejected joins must not mutate the roster, members=%d", members)
+	}
+}
+
+func addEligibleUsers(db *gorm.DB, courseID int64, from, to int) {
+	for id := from; id <= to; id++ {
+		db.Exec(`INSERT INTO users (id) VALUES (?)`, id)
+		db.Exec(`INSERT INTO user_courses (user_id, course_id) VALUES (?, ?)`, id, courseID)
+	}
+}
+
+func joinConcurrently(repo Repository, code string, from, to int) (succeeded, full int) {
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+	)
+
+	start := make(chan struct{})
+
+	for id := from; id <= to; id++ {
+		wg.Add(1)
+
+		go func(userID int64) {
+			defer wg.Done()
+
+			<-start
+
+			_, err := repo.Join(context.Background(), userID, code)
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			switch {
+			case err == nil:
+				succeeded++
+			case errors.Is(err, ErrTeamFull):
+				full++
+			}
+		}(int64(id))
+	}
+
+	close(start)
+	wg.Wait()
+
+	return succeeded, full
+}
+
+func memberCount(db *gorm.DB, courseID int64) int64 {
+	var n int64
+	db.Raw(`SELECT count(*) FROM team_members WHERE course_id = ?`, courseID).Scan(&n)
+
+	return n
+}
+
+func TestRepository_TeamNeverExceedsFiveUnderRace(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+
+	// 401 creates the team; 402..404 join sequentially -> size 4.
+	if _, err := repo.Create(ctx, 401, courseID, "Race", "RACE22"); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, id := range []int64{402, 403, 404} {
+		if _, err := repo.Join(ctx, id, "RACE22"); err != nil {
+			t.Fatalf("setup join %d: %v", id, err)
+		}
+	}
+
+	// Ten students race for the single remaining seat.
+	addEligibleUsers(db, courseID, 410, 419)
+
+	succeeded, full := joinConcurrently(repo, "RACE22", 410, 419)
+
+	if succeeded != 1 || full != 9 {
+		t.Fatalf("size-four race: expected 1 success and 9 full, got success=%d full=%d", succeeded, full)
+	}
+
+	if got := memberCount(db, courseID); got != 5 {
+		t.Fatalf("team must have exactly 5 members, got %d", got)
+	}
+}
+
+func TestRepository_ManyJoinersFillExactlyToFive(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+
+	if _, err := repo.Create(context.Background(), 401, courseID, "Fill", "FILL22"); err != nil {
+		t.Fatal(err)
+	}
+
+	addEligibleUsers(db, courseID, 410, 429)
+
+	succeeded, full := joinConcurrently(repo, "FILL22", 410, 429)
+
+	if succeeded != 4 || full != 16 {
+		t.Fatalf("expected 4 successes and 16 full, got success=%d full=%d", succeeded, full)
+	}
+
+	if got := memberCount(db, courseID); got != 5 {
+		t.Fatalf("team must have exactly 5 members, got %d", got)
+	}
+}
+
+func TestRepository_FullTeamRejectsWithoutMutation(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+
+	if _, err := repo.Create(ctx, 401, courseID, "Full", "FULL22"); err != nil {
+		t.Fatal(err)
+	}
+
+	addEligibleUsers(db, courseID, 410, 413)
+
+	for id := int64(410); id <= 413; id++ {
+		if _, err := repo.Join(ctx, id, "FULL22"); err != nil {
+			t.Fatalf("join %d: %v", id, err)
+		}
+	}
+
+	if _, err := repo.Join(ctx, 402, "FULL22"); !errors.Is(err, ErrTeamFull) {
+		t.Fatalf("sixth member: expected ErrTeamFull, got %v", err)
+	}
+
+	if _, err := repo.GetByUserCourse(ctx, 402, courseID); !errors.Is(err, ErrNotFound) {
+		t.Fatal("rejected student must not be enrolled")
+	}
+
+	if got := memberCount(db, courseID); got != 5 {
+		t.Fatalf("roster changed by a rejected join: %d", got)
 	}
 }
