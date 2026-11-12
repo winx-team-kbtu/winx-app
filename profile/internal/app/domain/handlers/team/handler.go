@@ -120,3 +120,27 @@ func (h *Handler) Join(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewResource(team), response.Updated))
 }
+
+func (h *Handler) Roster(ctx *gin.Context) {
+	authUser, err := headercontract.GetAuthUser(ctx.Request.Context())
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(response.Unauthorized))
+		errorhandler.FailOnError(err, "failed to get auth user")
+
+		return
+	}
+
+	query, ok := validation.BindAndValidate[dto.MineDTO](h.binder, ctx)
+	if !ok {
+		return
+	}
+
+	roster, err := h.service.Roster(ctx.Request.Context(), authUser.ID, query.CourseID)
+	if err != nil {
+		fail(ctx, err, "TeamRoster service error")
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewRosterResource(roster), response.OK))
+}
