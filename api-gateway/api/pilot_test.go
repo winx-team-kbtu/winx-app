@@ -59,6 +59,7 @@ func TestPilotMode_AcademicAndOtherRoutesStayRegistered(t *testing.T) {
 	for _, want := range []string{
 		"POST /api/v1/register",
 		"POST /api/v1/login",
+		"DELETE /api/v1/account",
 		"GET /api/v1/profile/me",
 		"POST /api/v1/profile/store",
 		"GET /api/v1/profile/academic/courses",

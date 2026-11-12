@@ -12,6 +12,7 @@ type Service interface {
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteAccount(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	//StoreRole(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	//UpdateRole(ctx context.Context, id string, body []byte, contentType string, headers map[string]string) (Response, error)
 	//DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error)
@@ -72,3 +73,7 @@ func (s *service) VerifyPin(ctx context.Context, body []byte, contentType string
 //func (s *service) DeleteRole(ctx context.Context, id string, headers map[string]string) (Response, error) {
 //	return s.client.DeleteRole(ctx, id, headers)
 //}
+
+func (s *service) DeleteAccount(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return s.client.DeleteAccount(ctx, body, contentType, headers)
+}

@@ -15,6 +15,9 @@ type User struct {
 
 	ConsentNoticeVersion *string    `json:"consent_notice_version,omitempty"`
 	ConsentAcceptedAt    *time.Time `json:"consent_accepted_at,omitempty"`
+
+	// DeletionRequestedAt is set while an account deletion is pending.
+	DeletionRequestedAt *time.Time `json:"-"`
 }
 
 func (User) TableName() string          { return "users" }
