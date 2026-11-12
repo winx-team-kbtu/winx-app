@@ -71,8 +71,8 @@ func (s *Server) initProfileRoutes(handler *profile.Handler) {
 	profileRoutes := mainRouter.Group("/profile")
 	profileRoutes.GET("/me", handler.GetMe)
 	profileRoutes.POST("/store", handler.Store)
-	profileRoutes.GET("/photo", handler.GetPhotos)
-	profileRoutes.POST("/photo/store", handler.StorePhoto)
+	profileRoutes.GET("/photo", s.social(handler.GetPhotos))
+	profileRoutes.POST("/photo/store", s.social(handler.StorePhoto))
 	profileRoutes.GET("/interests", handler.ListInterests)
 	profileRoutes.GET("/location/ip", handler.LookupLocationByIP)
 
@@ -83,21 +83,21 @@ func (s *Server) initProfileRoutes(handler *profile.Handler) {
 
 func (s *Server) initMatchRoutes(handler *match.Handler) {
 	swipeRoutes := mainRouter.Group("/swipes")
-	swipeRoutes.POST("/left", handler.SwipeLeft)
-	swipeRoutes.POST("/right", handler.SwipeRight)
+	swipeRoutes.POST("/left", s.social(handler.SwipeLeft))
+	swipeRoutes.POST("/right", s.social(handler.SwipeRight))
 
 	matchRoutes := mainRouter.Group("/matches")
-	matchRoutes.GET("", handler.List)
-	matchRoutes.DELETE("/:id", handler.Delete)
+	matchRoutes.GET("", s.social(handler.List))
+	matchRoutes.DELETE("/:id", s.social(handler.Delete))
 }
 
 func (s *Server) initRecommendationRoutes(handler *recommendation.Handler) {
 	recRoutes := mainRouter.Group("/recommendations")
-	recRoutes.GET("", handler.List)
+	recRoutes.GET("", s.social(handler.List))
 }
 
 func (s *Server) initChatRoutes(handler *chat.Handler) {
 	chatRoutes := mainRouter.Group("/chats")
-	chatRoutes.GET("", handler.List)
-	chatRoutes.GET("/:id/messages", handler.Messages)
+	chatRoutes.GET("", s.social(handler.List))
+	chatRoutes.GET("/:id/messages", s.social(handler.Messages))
 }

@@ -91,7 +91,10 @@ Consumers that create rows from `match.created` can recreate data for a user aft
 
 Exposed through the gateway today: photos (`/profile/photo`, `/profile/photo/store`), swipes,
 matches, recommendations and chats (`/swipes/*`, `/matches`, `/recommendations`, `/chats`).
-SCRUM-79 disables these in pilot mode. The matching tables (`swipes`, `matches`, `chats`,
+SCRUM-79 disables these at the gateway when `pilot.mode` is true (`api-gateway/config.dev.yaml`,
+override with the `PILOT_MODE` environment variable). The setting defaults to true when it is
+missing, so Social stays off unless someone sets `PILOT_MODE=false` on purpose. Disabled routes
+answer 404 and never reach the downstream services. The matching tables (`swipes`, `matches`, `chats`,
 `messages`, `recommendations`) must stay empty for pilot users.
 
 ## 8. Findings
