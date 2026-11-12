@@ -46,6 +46,65 @@ func (r *Repository) MarkDeletionRequested(ctx context.Context, id int64) error 
 	return nil
 }
 
+// TouchAttempt counts a user-initiated attempt, so the worker backs off from it.
+func (r *Repository) TouchAttempt(ctx context.Context, id int64) error {
+	if err := r.db.WithContext(ctx).Exec(
+		`UPDATE users SET deletion_attempts = deletion_attempts + 1, deletion_last_attempt_at = NOW() WHERE id = ?`, id,
+	).Error; err != nil {
+		return fmt.Errorf("touch deletion attempt: %w", err)
+	}
+
+	return nil
+}
+
+// RecordFailure stores why the last attempt failed. The text is truncated and is only ever
+// shown to operators, never returned to API clients.
+func (r *Repository) RecordFailure(ctx context.Context, id int64, message string) error {
+	const maxLen = 500
+	if len(message) > maxLen {
+		message = message[:maxLen]
+	}
+
+	if err := r.db.WithContext(ctx).Exec(
+		`UPDATE users SET deletion_last_error = ? WHERE id = ?`, message, id,
+	).Error; err != nil {
+		return fmt.Errorf("record deletion failure: %w", err)
+	}
+
+	return nil
+}
+
+// ClaimPending atomically picks pending deletions that are due and counts the attempt, so
+// several workers (or service replicas) never process the same account at once. The wait
+// before the next attempt doubles from 30 seconds up to one hour.
+func (r *Repository) ClaimPending(ctx context.Context, limit int) ([]models.User, error) {
+	var users []models.User
+
+	// The candidates are picked in a CTE, not in "id IN (subquery)": with the subquery form the
+	// planner may re-evaluate it while rows are being updated and ignore the LIMIT.
+	if err := r.db.WithContext(ctx).Raw(
+		`WITH picked AS (
+		        SELECT id FROM users
+		         WHERE deletion_requested_at IS NOT NULL
+		           AND (deletion_last_attempt_at IS NULL
+		                OR deletion_last_attempt_at
+		                   + LEAST(POWER(2, deletion_attempts) * INTERVAL '30 seconds', INTERVAL '1 hour') <= NOW())
+		         ORDER BY deletion_last_attempt_at NULLS FIRST, id
+		         LIMIT ?
+		           FOR UPDATE SKIP LOCKED)
+		 UPDATE users u
+		    SET deletion_attempts = u.deletion_attempts + 1,
+		        deletion_last_attempt_at = NOW()
+		   FROM picked
+		  WHERE u.id = picked.id
+		RETURNING u.*`, limit,
+	).Scan(&users).Error; err != nil {
+		return nil, fmt.Errorf("claim pending deletions: %w", err)
+	}
+
+	return users, nil
+}
+
 func (r *Repository) AccessTokens(ctx context.Context, userID int64) ([]string, error) {
 	var tokens []string
 

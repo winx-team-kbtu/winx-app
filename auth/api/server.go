@@ -10,6 +10,7 @@ import (
 	"auth/internal/app/core/http/middleware"
 	dbvalidator "auth/internal/app/core/validation"
 	gormvalidator "auth/internal/app/core/validation/gorm"
+	deletionService "auth/internal/app/domain/services/deletion"
 	oauthtoken "auth/internal/app/domain/services/token"
 	"auth/pkg/cache"
 	"auth/pkg/graylog/logger"
@@ -47,6 +48,7 @@ type Server struct {
 	tokenStore  oauth2.TokenStore
 	dbValidator dbvalidator.DBValidator
 	oauthServer oauthtoken.OAuthServer
+	deletions   deletionService.Retrier
 }
 
 var handler *gin.Engine
@@ -237,7 +239,19 @@ func (s *Server) initManager() *manage.Manager {
 	return manager
 }
 
-func (s *Server) initServer(_ context.Context) error {
+// deletionRetryInterval is how often pending account deletions are retried.
+const deletionRetryInterval = time.Minute
+
+func (s *Server) initServer(ctx context.Context) error {
+	workerCtx, stopWorker := context.WithCancel(ctx)
+	defer stopWorker()
+
+	if s.deletions != nil {
+		go deletionService.RunWorker(workerCtx, s.deletions, deletionRetryInterval, func(format string, args ...any) {
+			logger.Log.Printf(format, args...)
+		})
+	}
+
 	httpCfg := configs.Config.App.Url
 	httpServer := http.NewHttpServer(handler, http.Port(httpCfg))
 

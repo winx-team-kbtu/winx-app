@@ -28,6 +28,9 @@ type (
 		GetByID(ctx context.Context, id int64) (models.User, error)
 		MarkDeletionRequested(ctx context.Context, id int64) error
 		DeleteAccount(ctx context.Context, user models.User) error
+		TouchAttempt(ctx context.Context, id int64) error
+		RecordFailure(ctx context.Context, id int64, message string) error
+		ClaimPending(ctx context.Context, limit int) ([]models.User, error)
 	}
 
 	Tokens interface {
@@ -47,7 +50,19 @@ type (
 type Service interface {
 	// Delete removes the account after the user confirmed with their password.
 	Delete(ctx context.Context, userID int64, password string) error
+	// RetryPending repeats the cleanup of accounts whose deletion did not finish.
+	RetryPending(ctx context.Context) (Report, error)
 }
+
+// Report summarises one retry pass.
+type Report struct {
+	Attempted int
+	Completed int
+	Failed    int
+}
+
+// batchSize bounds the work of one retry pass.
+const batchSize = 50
 
 type service struct {
 	users   Users
@@ -74,7 +89,36 @@ func (s *service) Delete(ctx context.Context, userID int64, password string) err
 		return ErrInvalidPassword
 	}
 
+	// Count the attempt before running so the worker does not pick the same account up again
+	// while this request is still in progress.
+	if err := s.users.TouchAttempt(ctx, user.ID); err != nil {
+		return fmt.Errorf("%w: count attempt: %w", ErrPending, err)
+	}
+
 	return s.run(ctx, user)
+}
+
+// RetryPending claims the pending deletions that are due and runs them again. Accounts that
+// cannot be completed stay blocked and are retried later with a growing delay.
+func (s *service) RetryPending(ctx context.Context) (Report, error) {
+	users, err := s.users.ClaimPending(ctx, batchSize)
+	if err != nil {
+		return Report{}, err
+	}
+
+	report := Report{Attempted: len(users)}
+
+	for _, user := range users {
+		if err := s.run(ctx, user); err != nil {
+			report.Failed++
+
+			continue
+		}
+
+		report.Completed++
+	}
+
+	return report, nil
 }
 
 // run executes the deletion steps in order. Every step is idempotent, so the whole sequence
@@ -93,6 +137,9 @@ func (s *service) run(ctx context.Context, user models.User) error {
 
 	for _, step := range steps {
 		if err := step.do(ctx); err != nil {
+			// Best effort: failing to record the reason must not hide the real failure.
+			_ = s.users.RecordFailure(ctx, user.ID, fmt.Sprintf("%s: %v", step.name, err))
+
 			return fmt.Errorf("%w: %s: %w", ErrPending, step.name, err)
 		}
 	}

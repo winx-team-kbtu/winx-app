@@ -32,6 +32,10 @@ func (f *fakeService) Delete(_ context.Context, userID int64, password string) e
 	return f.err
 }
 
+func (f *fakeService) RetryPending(context.Context) (service.Report, error) {
+	return service.Report{}, nil
+}
+
 func do(t *testing.T, svc *fakeService, authenticated bool, body string) *httptest.ResponseRecorder {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -74,7 +78,7 @@ func TestDelete_ErrorMapping(t *testing.T) {
 	}{
 		"wrong password": {service.ErrInvalidPassword, http.StatusForbidden},
 		"not found":      {service.ErrNotFound, http.StatusNotFound},
-		"pending":        {errors.Join(service.ErrPending, errors.New("profile down")), http.StatusServiceUnavailable},
+		"pending":        {errors.Join(service.ErrPending, errors.New("profile down")), http.StatusAccepted},
 		"unexpected":     {errors.New("kaboom"), http.StatusInternalServerError},
 	}
 
@@ -89,11 +93,19 @@ func TestDelete_ErrorMapping(t *testing.T) {
 	}
 }
 
-func TestDelete_PendingIsNeverASuccessResponse(t *testing.T) {
+func TestDelete_PendingIsNeverReportedAsDeleted(t *testing.T) {
 	rec := do(t, &fakeService{err: service.ErrPending}, true, `{"password":"secret"}`)
 
-	assert.NotEqual(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), `"success":false`)
+	assert.Equal(t, http.StatusAccepted, rec.Code, "accepted for background retry, not done")
+	assert.JSONEq(t, `{"success":true,"message":"account deletion is pending","data":{"status":"pending"}}`, rec.Body.String())
+	assert.NotContains(t, rec.Body.String(), `"deleted"`)
+}
+
+func TestDelete_SuccessReportsDeletedStatus(t *testing.T) {
+	rec := do(t, &fakeService{}, true, `{"password":"secret"}`)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.JSONEq(t, `{"success":true,"message":"deleted","data":{"status":"deleted"}}`, rec.Body.String())
 }
 
 func TestDelete_RequiresPasswordConfirmation(t *testing.T) {
