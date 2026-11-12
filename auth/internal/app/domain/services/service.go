@@ -31,7 +31,12 @@ var (
 	ErrUnauthenticated = errors.New("unauthenticated")
 	ErrFailedCache     = errors.New("cache failed")
 	ErrFailedPublish   = errors.New("failed to publish user registered event")
+	ErrConsentRequired = errors.New("consent is required to register")
 )
+
+// ConsentNoticeVersion identifies the personal data notice shown at
+// registration. Bump it whenever the notice text changes (SCRUM-48).
+const ConsentNoticeVersion = "pilot-2026-11-v1"
 
 type Service interface {
 	Login(ctx context.Context, dto dto.LoginDTO) (tokenService.Response, int, error)
@@ -96,9 +101,15 @@ func (s *service) Login(ctx context.Context, input dto.LoginDTO) (tokenService.R
 }
 
 func (s *service) Register(ctx context.Context, input dto.RegisterDTO) (models.User, error) {
+	if !input.ConsentAccepted {
+		return models.User{}, ErrConsentRequired
+	}
+
 	user, err := s.userService.Create(ctx, userDto.CreateDTO{
-		Email:    input.Email,
-		Password: input.Password,
+		Email:                input.Email,
+		Password:             input.Password,
+		ConsentNoticeVersion: ConsentNoticeVersion,
+		ConsentAcceptedAt:    time.Now().UTC(),
 	})
 	if err != nil {
 		return models.User{}, err

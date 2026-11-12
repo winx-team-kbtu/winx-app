@@ -45,8 +45,10 @@ func (s *service) Create(ctx context.Context, input dto.CreateDTO) (models.User,
 	}
 
 	return s.repository.Create(ctx, repoDto.CreateDTO{
-		Email:    input.Email,
-		Password: passwd,
+		Email:                input.Email,
+		Password:             passwd,
+		ConsentNoticeVersion: input.ConsentNoticeVersion,
+		ConsentAcceptedAt:    input.ConsentAcceptedAt,
 	})
 }
 
