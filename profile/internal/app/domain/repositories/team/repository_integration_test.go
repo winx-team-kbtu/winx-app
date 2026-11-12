@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	deckrepo "winx-profile/internal/app/domain/repositories/deck"
+	"winx-profile/internal/app/models/models"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -397,4 +398,63 @@ func TestRepository_RosterShowsAcademicFieldsToMembersOnly(t *testing.T) {
 	if _, err := repo.Roster(ctx, 403, courseID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("outsider must get ErrNotFound, got %v", err)
 	}
+}
+
+func TestRepository_StatusFollowsMembership(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+
+	team, err := repo.Create(ctx, 401, courseID, "Status", "STAT22")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expect := func(want models.TeamStatus) {
+		t.Helper()
+
+		mine, err := repo.GetByUserCourse(ctx, 401, courseID)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if got := mine.Status(); got != want {
+			t.Fatalf("size %d: expected %s, got %s", mine.MemberCount, want, got)
+		}
+	}
+
+	expect(models.TeamStatusForming) // 1
+
+	if _, err := repo.Join(ctx, 402, "STAT22"); err != nil {
+		t.Fatal(err)
+	}
+
+	expect(models.TeamStatusForming) // 2
+
+	if _, err := repo.Join(ctx, 403, "STAT22"); err != nil {
+		t.Fatal(err)
+	}
+
+	expect(models.TeamStatusReady) // 3: third join turns the team Ready
+
+	if _, err := repo.Join(ctx, 404, "STAT22"); err != nil {
+		t.Fatal(err)
+	}
+
+	addEligibleUsers(db, courseID, 410, 410)
+
+	if _, err := repo.Join(ctx, 410, "STAT22"); err != nil {
+		t.Fatal(err)
+	}
+
+	expect(models.TeamStatusFull) // 5
+
+	// Removing a member (account deletion cascades) recalculates the status.
+	db.Exec(`DELETE FROM users WHERE id = 410`)
+	expect(models.TeamStatusReady) // 4
+
+	db.Exec(`DELETE FROM users WHERE id IN (403, 404)`)
+	expect(models.TeamStatusForming) // 2
+
+	_ = team
 }
