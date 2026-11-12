@@ -19,6 +19,7 @@ type Client interface {
 	ResetPassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ChangePassword(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
+	DeleteAccount(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 }
 
 type Response = proxy.Response
@@ -67,6 +68,16 @@ func (c *client) ChangePassword(ctx context.Context, body []byte, contentType st
 
 func (c *client) VerifyPin(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
 	return c.doPost(ctx, "/password/verify-pin", body, contentType, headers)
+}
+
+func (c *client) DeleteAccount(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error) {
+	return c.proxy.Do(ctx, proxy.Request{
+		Method:      http.MethodDelete,
+		Path:        "/account",
+		ContentType: contentType,
+		Body:        body,
+		Headers:     headers,
+	})
 }
 
 func (c *client) doPost(ctx context.Context, path string, body []byte, contentType string, headers map[string]string) (Response, error) {

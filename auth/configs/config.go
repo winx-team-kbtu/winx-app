@@ -18,6 +18,17 @@ type (
 		Kafka  kafka   `yaml:"kafka"`
 		Logger grayLog `yaml:"graylog"`
 		Oauth  oauth   `yaml:"oauth"`
+		// Services are the internal APIs the auth service calls.
+		Services services `yaml:"services"`
+	}
+
+	services struct {
+		Profile service `yaml:"profile"`
+	}
+
+	service struct {
+		URL    string `yaml:"url"`
+		APIKey string `yaml:"api_key"`
 	}
 
 	app struct {
@@ -124,6 +135,12 @@ func InitConfig() {
 			Host:   viper.GetString("graylog.host"),
 			Port:   viper.GetInt("graylog.port"),
 			Source: viper.GetString("graylog.source"),
+		},
+		Services: services{
+			Profile: service{
+				URL:    viper.GetString("services.profile.url"),
+				APIKey: viper.GetString("services.profile.api_key"),
+			},
 		},
 		Oauth: oauth{
 			AccessTokenExp:  viper.GetInt64("oauth.access_token_exp"),

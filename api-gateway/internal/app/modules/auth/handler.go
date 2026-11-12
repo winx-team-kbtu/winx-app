@@ -64,6 +64,11 @@ func (h *Handler) VerifyPin(ctx *gin.Context) {
 	h.proxyPost(ctx, h.service.VerifyPin)
 }
 
+// DeleteAccount proxies the authenticated self-service account deletion to the auth service.
+func (h *Handler) DeleteAccount(ctx *gin.Context) {
+	h.proxy(ctx, h.service.DeleteAccount)
+}
+
 //func (h *Handler) StoreRole(ctx *gin.Context) {
 //	h.proxyPost(ctx, h.service.StoreRole)
 //}
