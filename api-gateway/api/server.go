@@ -32,6 +32,9 @@ type Server struct {
 	matchService          match.Service
 	recommendationService recommendation.Service
 	chatService           chat.Service
+
+	// pilotMode disables the legacy Social routes (see configs.Pilot).
+	pilotMode bool
 }
 
 var handler *gin.Engine
@@ -79,6 +82,9 @@ func (s *Server) initConfig(_ context.Context) error {
 
 func (s *Server) initLayers(_ context.Context) error {
 	logger.Info("Initializing service clients...")
+
+	s.pilotMode = configs.Config.Pilot.Mode
+	logger.Info("Pilot mode: %t (Social features disabled when true)", s.pilotMode)
 
 	authClient := auth.NewClient(
 		configs.Config.Services.Auth.URL,
