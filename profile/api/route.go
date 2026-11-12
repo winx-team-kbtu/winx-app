@@ -14,6 +14,7 @@ import (
 	locationHandler "winx-profile/internal/app/domain/handlers/location"
 	photoHandler "winx-profile/internal/app/domain/handlers/photo"
 	profileHandler "winx-profile/internal/app/domain/handlers/profile"
+	teamHandler "winx-profile/internal/app/domain/handlers/team"
 	academicService "winx-profile/internal/app/domain/services/academic"
 	choiceService "winx-profile/internal/app/domain/services/choice"
 	courseService "winx-profile/internal/app/domain/services/course"
@@ -22,6 +23,7 @@ import (
 	locationService "winx-profile/internal/app/domain/services/location"
 	photoService "winx-profile/internal/app/domain/services/photo"
 	profileService "winx-profile/internal/app/domain/services/profile"
+	teamService "winx-profile/internal/app/domain/services/team"
 	"winx-profile/pkg/cache"
 	"winx-profile/pkg/geoip"
 
@@ -76,6 +78,7 @@ func (s *Server) initDomainRoutes() error {
 	s.initAcademicRoutes(academicHandler.NewHandler(academicService.NewService(s.pgdb), binder))
 	s.initDeckRoutes(deckHandler.NewHandler(deckService.NewService(s.pgdb), binder))
 	s.initChoiceRoutes(choiceHandler.NewHandler(choiceService.NewService(s.pgdb), binder))
+	s.initTeamRoutes(teamHandler.NewHandler(teamService.NewService(s.pgdb), binder))
 	s.initCourseRoutes(courseHandler.NewHandler(courseService.NewService(s.pgdb), binder))
 
 	return nil
@@ -125,4 +128,10 @@ func (s *Server) initChoiceRoutes(handler *choiceHandler.Handler) {
 	choiceRoutes := authUserRouter.Group("/profile/academic")
 	choiceRoutes.PUT("/choices", handler.Store)
 	choiceRoutes.GET("/shortlist", handler.Shortlist)
+}
+
+func (s *Server) initTeamRoutes(handler *teamHandler.Handler) {
+	teamRoutes := authUserRouter.Group("/profile/academic/teams")
+	teamRoutes.POST("", handler.Store)
+	teamRoutes.GET("/me", handler.GetMine)
 }
