@@ -35,6 +35,7 @@ type Service interface {
 	Create(ctx context.Context, userID, courseID int64, name string) (models.Team, error)
 	GetMine(ctx context.Context, userID, courseID int64) (models.Team, error)
 	Join(ctx context.Context, userID int64, joinCode string) (models.Team, error)
+	Roster(ctx context.Context, userID, courseID int64) (models.TeamRoster, error)
 }
 
 type service struct {
@@ -127,4 +128,10 @@ func validCode(code string) bool {
 	}
 
 	return true
+}
+
+// Roster is visible only to members of the team; everyone else gets ErrNotFound
+// so the existence of other teams is not revealed.
+func (s *service) Roster(ctx context.Context, userID, courseID int64) (models.TeamRoster, error) {
+	return s.repository.Roster(ctx, userID, courseID)
 }

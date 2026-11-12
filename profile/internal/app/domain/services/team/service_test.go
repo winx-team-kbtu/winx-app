@@ -82,6 +82,15 @@ func (f *fakeRepo) Join(_ context.Context, userID int64, code string) (models.Te
 	return models.Team{}, repository.ErrNotFound
 }
 
+func (f *fakeRepo) Roster(_ context.Context, userID, courseID int64) (models.TeamRoster, error) {
+	t, ok := f.teams[[2]int64{userID, courseID}]
+	if !ok {
+		return models.TeamRoster{}, repository.ErrNotFound
+	}
+
+	return models.TeamRoster{TeamID: t.ID, TeamName: t.Name, CourseID: courseID, Members: []models.DeckCandidate{{UserID: userID}}}, nil
+}
+
 func fixedCodes(codes ...string) func() (string, error) {
 	i := 0
 
@@ -271,5 +280,20 @@ func TestJoin_MalformedCodeNeverReachesRepository(t *testing.T) {
 		if len(repo.joinCodes) != 0 {
 			t.Fatalf("%q: malformed code reached the repository", code)
 		}
+	}
+}
+
+func TestRoster_MemberSeesTeamAndOutsiderDoesNot(t *testing.T) {
+	repo := newFakeRepo()
+	newTeamWithCode(t, repo)
+	svc := NewServiceWithRepository(repo, fixedCodes("X"))
+
+	roster, err := svc.Roster(context.Background(), 1, 10)
+	if err != nil || roster.TeamName != "Alpha" || len(roster.Members) != 1 {
+		t.Fatalf("member roster wrong: %+v err=%v", roster, err)
+	}
+
+	if _, err := svc.Roster(context.Background(), 2, 10); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("outsider must get ErrNotFound, got %v", err)
 	}
 }

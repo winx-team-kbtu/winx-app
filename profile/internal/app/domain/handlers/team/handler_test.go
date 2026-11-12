@@ -3,6 +3,7 @@ package team
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,6 +49,18 @@ func (f *fakeService) Join(_ context.Context, _ int64, code string) (models.Team
 	return models.Team{ID: 1, CourseID: 10, Name: "T", JoinCode: code, MemberCount: 2}, nil
 }
 
+func (f *fakeService) Roster(_ context.Context, _, courseID int64) (models.TeamRoster, error) {
+	f.calls++
+	if f.err != nil {
+		return models.TeamRoster{}, f.err
+	}
+
+	return models.TeamRoster{
+		TeamID: 1, TeamName: "Alpha", CourseID: courseID, CourseCode: "ALG201", CourseTitle: "Algorithms",
+		Members: []models.DeckCandidate{{UserID: 1, Name: "Ann", Skills: []string{"Go"}, PreferredRole: "Backend"}, {UserID: 2, Name: "Bob"}},
+	}, nil
+}
+
 func newRouter(t *testing.T, svc service.Service, authenticated bool) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -69,6 +82,7 @@ func newRouter(t *testing.T, svc service.Service, authenticated bool) *gin.Engin
 	r.POST("/teams", h.Store)
 	r.GET("/teams/me", h.GetMine)
 	r.POST("/teams/join", h.Join)
+	r.GET("/teams/roster", h.Roster)
 
 	return r
 }
@@ -190,5 +204,54 @@ func TestJoin_InvalidPayloadIs422(t *testing.T) {
 func TestJoin_RequiresAuthUser(t *testing.T) {
 	if rec := do(newRouter(t, &fakeService{}, false), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestRoster_ExposesOnlyAcademicFields(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster?course_id=10", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body)
+	}
+
+	var body struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+
+	topAllowed := map[string]bool{"team_id": true, "team_name": true, "course": true, "members": true}
+	for key := range body.Data {
+		if !topAllowed[key] {
+			t.Fatalf("roster leaks field %q (join_code, contacts etc. must not be here)", key)
+		}
+	}
+
+	var members []map[string]any
+	if err := json.Unmarshal(body.Data["members"], &members); err != nil || len(members) != 2 {
+		t.Fatalf("members wrong: %s err=%v", body.Data["members"], err)
+	}
+
+	memberAllowed := map[string]bool{"user_id": true, "name": true, "skills": true, "preferred_role": true}
+	for _, m := range members {
+		for key := range m {
+			if !memberAllowed[key] {
+				t.Fatalf("member exposes non-academic field %q", key)
+			}
+		}
+	}
+}
+
+func TestRoster_Rules(t *testing.T) {
+	if rec := do(newRouter(t, &fakeService{err: service.ErrNotFound}, true), http.MethodGet, "/teams/roster?course_id=10", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("non-member expected 404, got %d", rec.Code)
+	}
+
+	if rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing course_id expected 422, got %d", rec.Code)
+	}
+
+	if rec := do(newRouter(t, &fakeService{}, false), http.MethodGet, "/teams/roster?course_id=10", ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated expected 401, got %d", rec.Code)
 	}
 }

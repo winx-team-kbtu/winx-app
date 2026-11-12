@@ -135,4 +135,5 @@ func (s *Server) initTeamRoutes(handler *teamHandler.Handler) {
 	teamRoutes.POST("", handler.Store)
 	teamRoutes.GET("/me", handler.GetMine)
 	teamRoutes.POST("/join", handler.Join)
+	teamRoutes.GET("/roster", handler.Roster)
 }
