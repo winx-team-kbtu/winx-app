@@ -21,7 +21,8 @@ func NewPasswordHandler(db *gorm.DB) *PasswordHandler {
 func (h *PasswordHandler) Password(_ context.Context, _, username, password string) (string, error) {
 	var user models.User
 
-	if err := h.db.Where("email = ?", username).First(&user).Error; err != nil {
+	// An account with a pending deletion can no longer sign in.
+	if err := h.db.Where("email = ? AND deletion_requested_at IS NULL", username).First(&user).Error; err != nil {
 		return "", errors.New("invalid credentials")
 	}
 
