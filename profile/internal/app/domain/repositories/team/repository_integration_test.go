@@ -48,7 +48,7 @@ func setup(t *testing.T) (*gorm.DB, int64) {
 	t.Cleanup(cleanup)
 
 	for id := 401; id <= 404; id++ {
-		db.Exec(`INSERT INTO users (id) VALUES (?)`, id)
+		db.Exec(`INSERT INTO users (id, email, password) VALUES (?, 'it-' || (?::bigint)::text || '@test.io', 'x')`, id, id)
 	}
 
 	var courseID int64
@@ -216,7 +216,7 @@ func TestRepository_JoinByCode(t *testing.T) {
 	}
 
 	// Student who did not select the course is not eligible.
-	db.Exec(`INSERT INTO users (id) VALUES (499) ON CONFLICT DO NOTHING`)
+	db.Exec(`INSERT INTO users (id, email, password) VALUES (499, 'it-499@test.io', 'x') ON CONFLICT DO NOTHING`)
 	t.Cleanup(func() { db.Exec(`DELETE FROM users WHERE id = 499`) })
 
 	if _, err := repo.Join(ctx, 499, "JOIN22"); !errors.Is(err, ErrCourseNotSelected) {
@@ -233,7 +233,7 @@ func TestRepository_JoinByCode(t *testing.T) {
 
 func addEligibleUsers(db *gorm.DB, courseID int64, from, to int) {
 	for id := from; id <= to; id++ {
-		db.Exec(`INSERT INTO users (id) VALUES (?)`, id)
+		db.Exec(`INSERT INTO users (id, email, password) VALUES (?, 'it-' || (?::bigint)::text || '@test.io', 'x')`, id, id)
 		db.Exec(`INSERT INTO user_courses (user_id, course_id) VALUES (?, ?)`, id, courseID)
 	}
 }

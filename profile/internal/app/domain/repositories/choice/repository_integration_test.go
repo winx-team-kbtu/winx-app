@@ -43,7 +43,7 @@ func TestRepository_ChoicesShortlistAndDeck(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	for id := 201; id <= 204; id++ {
-		db.Exec(`INSERT INTO users (id) VALUES (?)`, id)
+		db.Exec(`INSERT INTO users (id, email, password) VALUES (?, 'it-' || (?::bigint)::text || '@test.io', 'x')`, id, id)
 	}
 
 	db.Exec(`INSERT INTO profiles (user_id, email, name) VALUES (202, 'b@x.io', 'Bob'), (203, 'c@x.io', 'Cat')`)
