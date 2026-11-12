@@ -10,15 +10,19 @@ import (
 	choiceHandler "winx-profile/internal/app/domain/handlers/choice"
 	courseHandler "winx-profile/internal/app/domain/handlers/course"
 	deckHandler "winx-profile/internal/app/domain/handlers/deck"
+	erasureHandler "winx-profile/internal/app/domain/handlers/erasure"
 	interestHandler "winx-profile/internal/app/domain/handlers/interest"
 	locationHandler "winx-profile/internal/app/domain/handlers/location"
 	photoHandler "winx-profile/internal/app/domain/handlers/photo"
 	profileHandler "winx-profile/internal/app/domain/handlers/profile"
 	teamHandler "winx-profile/internal/app/domain/handlers/team"
+	erasureRepository "winx-profile/internal/app/domain/repositories/erasure"
+	profileRepository "winx-profile/internal/app/domain/repositories/profile"
 	academicService "winx-profile/internal/app/domain/services/academic"
 	choiceService "winx-profile/internal/app/domain/services/choice"
 	courseService "winx-profile/internal/app/domain/services/course"
 	deckService "winx-profile/internal/app/domain/services/deck"
+	erasureService "winx-profile/internal/app/domain/services/erasure"
 	interestService "winx-profile/internal/app/domain/services/interest"
 	locationService "winx-profile/internal/app/domain/services/location"
 	photoService "winx-profile/internal/app/domain/services/photo"
@@ -79,6 +83,11 @@ func (s *Server) initDomainRoutes() error {
 	s.initDeckRoutes(deckHandler.NewHandler(deckService.NewService(s.pgdb), binder))
 	s.initChoiceRoutes(choiceHandler.NewHandler(choiceService.NewService(s.pgdb), binder))
 	s.initTeamRoutes(teamHandler.NewHandler(teamService.NewService(s.pgdb), binder))
+	s.initInternalRoutes(erasureHandler.NewHandler(erasureService.NewService(
+		erasureRepository.NewRepository(s.pgdb),
+		s.s3Storage,
+		profileRepository.NewRepository(s.mongoDB),
+	)))
 	s.initCourseRoutes(courseHandler.NewHandler(courseService.NewService(s.pgdb), binder))
 
 	return nil
@@ -136,4 +145,11 @@ func (s *Server) initTeamRoutes(handler *teamHandler.Handler) {
 	teamRoutes.GET("/me", handler.GetMine)
 	teamRoutes.POST("/join", handler.Join)
 	teamRoutes.GET("/roster", handler.Roster)
+}
+
+// initInternalRoutes registers service-to-service endpoints. They sit behind the API key
+// only (no user session) and are not proxied by the gateway.
+func (s *Server) initInternalRoutes(handler *erasureHandler.Handler) {
+	internalRoutes := mainRouter.Group("/internal")
+	internalRoutes.DELETE("/users/:id", handler.DeleteUser)
 }
