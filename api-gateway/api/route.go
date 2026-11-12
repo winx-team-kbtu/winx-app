@@ -75,6 +75,10 @@ func (s *Server) initProfileRoutes(handler *profile.Handler) {
 	profileRoutes.POST("/photo/store", handler.StorePhoto)
 	profileRoutes.GET("/interests", handler.ListInterests)
 	profileRoutes.GET("/location/ip", handler.LookupLocationByIP)
+
+	for _, route := range profile.AcademicRoutes {
+		profileRoutes.Handle(route.Method, route.Path, handler.Academic(route))
+	}
 }
 
 func (s *Server) initMatchRoutes(handler *match.Handler) {
