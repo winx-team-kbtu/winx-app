@@ -102,6 +102,10 @@ func TestStore_Created(t *testing.T) {
 		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body)
 	}
 
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
+		t.Fatalf("one-member team must be forming: %s", rec.Body)
+	}
+
 	if !bytes.Contains(rec.Body.Bytes(), []byte(`"join_code":"ABC234"`)) {
 		t.Fatalf("join code missing: %s", rec.Body)
 	}
@@ -168,7 +172,7 @@ func TestJoin_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body)
 	}
 
-	if !bytes.Contains(rec.Body.Bytes(), []byte(`"member_count":2`)) {
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"member_count":2`)) || !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
 		t.Fatalf("unexpected body %s", rec.Body)
 	}
 }
@@ -220,7 +224,7 @@ func TestRoster_ExposesOnlyAcademicFields(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	topAllowed := map[string]bool{"team_id": true, "team_name": true, "course": true, "members": true}
+	topAllowed := map[string]bool{"team_id": true, "team_name": true, "size": true, "status": true, "course": true, "members": true}
 	for key := range body.Data {
 		if !topAllowed[key] {
 			t.Fatalf("roster leaks field %q (join_code, contacts etc. must not be here)", key)
@@ -253,5 +257,13 @@ func TestRoster_Rules(t *testing.T) {
 
 	if rec := do(newRouter(t, &fakeService{}, false), http.MethodGet, "/teams/roster?course_id=10", ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated expected 401, got %d", rec.Code)
+	}
+}
+
+func TestRoster_ReportsSizeAndStatus(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster?course_id=10", "")
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"size":2`)) || !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
+		t.Fatalf("roster must report size and status: %s", rec.Body)
 	}
 }
