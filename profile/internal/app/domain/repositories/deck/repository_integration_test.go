@@ -41,7 +41,7 @@ func TestRepository_DeckFiltersByCourseAndExcludesSelf(t *testing.T) {
 	t.Cleanup(cleanup)
 
 	for id := 101; id <= 104; id++ {
-		db.Exec(`INSERT INTO users (id) VALUES (?)`, id)
+		db.Exec(`INSERT INTO users (id, email, password) VALUES (?, 'it-' || (?::bigint)::text || '@test.io', 'x')`, id, id)
 	}
 
 	db.Exec(`INSERT INTO profiles (user_id, email, name) VALUES (102, 'b@x.io', 'Bob'), (103, 'c@x.io', 'Cat')`)
