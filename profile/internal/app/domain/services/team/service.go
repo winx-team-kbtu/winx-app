@@ -28,6 +28,7 @@ var (
 	ErrInvalidName       = errors.New("invalid team name")
 	ErrAlreadyInTeam     = repository.ErrAlreadyInTeam
 	ErrNotFound          = repository.ErrNotFound
+	ErrTeamFull          = repository.ErrTeamFull
 )
 
 type Service interface {
