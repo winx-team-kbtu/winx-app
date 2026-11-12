@@ -25,7 +25,11 @@ var (
 	ErrCodeTaken     = errors.New("join code already taken")
 
 	ErrCourseNotSelected = errors.New("course is not selected")
+	ErrTeamFull          = errors.New("team is full")
 )
+
+// MaxMembers is the hard cap on team size.
+const MaxMembers = 5
 
 type Repository interface {
 	HasCourse(ctx context.Context, userID, courseID int64) (bool, error)
@@ -125,7 +129,9 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Raw(
-			`SELECT id, course_id, name, join_code, created_at FROM teams WHERE join_code = ?`, joinCode,
+			// FOR UPDATE serialises concurrent joins to the same team, so the size
+			// check below and the insert are atomic with respect to other joiners.
+			`SELECT id, course_id, name, join_code, created_at FROM teams WHERE join_code = ? FOR UPDATE`, joinCode,
 		).Scan(&team)
 		if res.Error != nil {
 			return res.Error
@@ -147,6 +153,15 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 			return ErrCourseNotSelected
 		}
 
+		var size int64
+		if err := tx.Raw(`SELECT COUNT(*) FROM team_members WHERE team_id = ?`, team.ID).Scan(&size).Error; err != nil {
+			return err
+		}
+
+		if size >= MaxMembers {
+			return ErrTeamFull
+		}
+
 		if err := tx.Exec(
 			`INSERT INTO team_members (team_id, user_id, course_id) VALUES (?, ?, ?)`,
 			team.ID, userID, team.CourseID,
@@ -157,7 +172,7 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 		return tx.Raw(`SELECT COUNT(*) FROM team_members WHERE team_id = ?`, team.ID).Scan(&team.MemberCount).Error
 	})
 	if err != nil {
-		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrCourseNotSelected) {
+		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrCourseNotSelected) || errors.Is(err, ErrTeamFull) {
 			return models.Team{}, err
 		}
 
