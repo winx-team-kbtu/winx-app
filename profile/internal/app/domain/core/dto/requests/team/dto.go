@@ -8,3 +8,7 @@ type StoreDTO struct {
 type MineDTO struct {
 	CourseID int64 `form:"course_id" validate:"required,gt=0"`
 }
+
+type JoinDTO struct {
+	JoinCode string `json:"join_code" validate:"required,max=32"`
+}
