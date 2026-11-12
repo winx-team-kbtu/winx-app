@@ -16,6 +16,8 @@ type Client interface {
 	StorePhoto(ctx context.Context, body []byte, contentType string, headers map[string]string) (Response, error)
 	ListInterests(ctx context.Context, headers map[string]string, query url.Values) (Response, error)
 	LookupLocationByIP(ctx context.Context, headers map[string]string) (Response, error)
+	// Academic forwards one of the allow-listed academic pilot endpoints.
+	Academic(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string, query url.Values) (Response, error)
 }
 
 type Response = proxy.Response
@@ -80,6 +82,17 @@ func (c *client) LookupLocationByIP(ctx context.Context, headers map[string]stri
 		Method:  http.MethodGet,
 		Path:    "/profile/location/ip",
 		Headers: headers,
+	})
+}
+
+func (c *client) Academic(ctx context.Context, method, path string, body []byte, contentType string, headers map[string]string, query url.Values) (Response, error) {
+	return c.proxy.Do(ctx, proxy.Request{
+		Method:      method,
+		Path:        "/profile" + path,
+		ContentType: contentType,
+		Body:        body,
+		Headers:     headers,
+		Query:       cloneQuery(query),
 	})
 }
 
