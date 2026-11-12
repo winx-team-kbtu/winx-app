@@ -39,6 +39,15 @@ func (f *fakeService) GetMine(_ context.Context, _, courseID int64) (models.Team
 	return models.Team{ID: 1, CourseID: courseID, Name: "T", JoinCode: "ABC234", MemberCount: 1}, nil
 }
 
+func (f *fakeService) Join(_ context.Context, _ int64, code string) (models.Team, error) {
+	f.calls++
+	if f.err != nil {
+		return models.Team{}, f.err
+	}
+
+	return models.Team{ID: 1, CourseID: 10, Name: "T", JoinCode: code, MemberCount: 2}, nil
+}
+
 func newRouter(t *testing.T, svc service.Service, authenticated bool) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -59,6 +68,7 @@ func newRouter(t *testing.T, svc service.Service, authenticated bool) *gin.Engin
 	})
 	r.POST("/teams", h.Store)
 	r.GET("/teams/me", h.GetMine)
+	r.POST("/teams/join", h.Join)
 
 	return r
 }
@@ -135,5 +145,50 @@ func TestRequiresAuthUser(t *testing.T) {
 
 	if rec := do(r, http.MethodGet, "/teams/me?course_id=10", ""); rec.Code != http.StatusUnauthorized {
 		t.Fatalf("GET expected 401, got %d", rec.Code)
+	}
+}
+
+func TestJoin_Success(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"member_count":2`)) {
+		t.Fatalf("unexpected body %s", rec.Body)
+	}
+}
+
+func TestJoin_ErrorMapping(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want int
+	}{
+		"invalid code": {service.ErrNotFound, http.StatusNotFound},
+		"duplicate":    {service.ErrAlreadyInTeam, http.StatusConflict},
+		"wrong course": {service.ErrCourseNotSelected, http.StatusForbidden},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rec := do(newRouter(t, &fakeService{err: tc.err}, true), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`)
+			if rec.Code != tc.want {
+				t.Fatalf("expected %d, got %d", tc.want, rec.Code)
+			}
+		})
+	}
+}
+
+func TestJoin_InvalidPayloadIs422(t *testing.T) {
+	svc := &fakeService{}
+
+	if rec := do(newRouter(t, svc, true), http.MethodPost, "/teams/join", `{}`); rec.Code != http.StatusUnprocessableEntity || svc.calls != 0 {
+		t.Fatalf("expected 422 and no call, got %d calls=%d", rec.Code, svc.calls)
+	}
+}
+
+func TestJoin_RequiresAuthUser(t *testing.T) {
+	if rec := do(newRouter(t, &fakeService{}, false), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
 	}
 }

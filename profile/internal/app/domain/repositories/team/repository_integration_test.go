@@ -186,3 +186,46 @@ func TestRepository_TeamedStudentsLeaveTheDeck(t *testing.T) {
 		}
 	}
 }
+
+func TestRepository_JoinByCode(t *testing.T) {
+	db, courseID := setup(t)
+	repo := NewRepository(db)
+	ctx := context.Background()
+
+	if _, err := repo.Create(ctx, 401, courseID, "Alpha", "JOIN22"); err != nil {
+		t.Fatal(err)
+	}
+
+	team, err := repo.Join(ctx, 402, "JOIN22")
+	if err != nil || team.MemberCount != 2 || team.CourseID != courseID {
+		t.Fatalf("join failed: %+v err=%v", team, err)
+	}
+
+	mine, err := repo.GetByUserCourse(ctx, 402, courseID)
+	if err != nil || mine.ID != team.ID {
+		t.Fatalf("joined user must see the team: %+v err=%v", mine, err)
+	}
+
+	if _, err := repo.Join(ctx, 402, "JOIN22"); !errors.Is(err, ErrAlreadyInTeam) {
+		t.Fatalf("duplicate join: expected ErrAlreadyInTeam, got %v", err)
+	}
+
+	if _, err := repo.Join(ctx, 403, "NOPE22"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown code: expected ErrNotFound, got %v", err)
+	}
+
+	// Student who did not select the course is not eligible.
+	db.Exec(`INSERT INTO users (id) VALUES (499) ON CONFLICT DO NOTHING`)
+	t.Cleanup(func() { db.Exec(`DELETE FROM users WHERE id = 499`) })
+
+	if _, err := repo.Join(ctx, 499, "JOIN22"); !errors.Is(err, ErrCourseNotSelected) {
+		t.Fatalf("ineligible: expected ErrCourseNotSelected, got %v", err)
+	}
+
+	var members int64
+	db.Raw(`SELECT count(*) FROM team_members WHERE team_id = ?`, team.ID).Scan(&members)
+
+	if members != 2 {
+		t.Fatalf("rejected joins must not mutate the roster, members=%d", members)
+	}
+}

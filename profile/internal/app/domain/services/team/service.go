@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	ErrCourseNotSelected = errors.New("course is not selected")
+	ErrCourseNotSelected = repository.ErrCourseNotSelected
 	ErrInvalidName       = errors.New("invalid team name")
 	ErrAlreadyInTeam     = repository.ErrAlreadyInTeam
 	ErrNotFound          = repository.ErrNotFound
@@ -33,6 +33,7 @@ var (
 type Service interface {
 	Create(ctx context.Context, userID, courseID int64, name string) (models.Team, error)
 	GetMine(ctx context.Context, userID, courseID int64) (models.Team, error)
+	Join(ctx context.Context, userID int64, joinCode string) (models.Team, error)
 }
 
 type service struct {
@@ -99,4 +100,30 @@ func generateCode() (string, error) {
 	}
 
 	return b.String(), nil
+}
+
+// Join enrols the user in the team that owns the code. The user must have
+// selected the team's course and must not already be in a team for it. Codes
+// are matched case-insensitively and malformed ones never reach the database.
+func (s *service) Join(ctx context.Context, userID int64, joinCode string) (models.Team, error) {
+	code := strings.ToUpper(strings.TrimSpace(joinCode))
+	if !validCode(code) {
+		return models.Team{}, ErrNotFound
+	}
+
+	return s.repository.Join(ctx, userID, code)
+}
+
+func validCode(code string) bool {
+	if len(code) != codeLength {
+		return false
+	}
+
+	for _, r := range code {
+		if !strings.ContainsRune(codeAlphabet, r) {
+			return false
+		}
+	}
+
+	return true
 }
