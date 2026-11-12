@@ -6,10 +6,12 @@ import (
 	"winx-profile/internal/app/core/helpers/response"
 	"winx-profile/internal/app/core/http/middleware"
 	corevalidation "winx-profile/internal/app/core/validation"
+	courseHandler "winx-profile/internal/app/domain/handlers/course"
 	interestHandler "winx-profile/internal/app/domain/handlers/interest"
 	locationHandler "winx-profile/internal/app/domain/handlers/location"
 	photoHandler "winx-profile/internal/app/domain/handlers/photo"
 	profileHandler "winx-profile/internal/app/domain/handlers/profile"
+	courseService "winx-profile/internal/app/domain/services/course"
 	interestService "winx-profile/internal/app/domain/services/interest"
 	locationService "winx-profile/internal/app/domain/services/location"
 	photoService "winx-profile/internal/app/domain/services/photo"
@@ -65,6 +67,7 @@ func (s *Server) initDomainRoutes() error {
 	s.initPhotoRoutes(photoHandler.NewHandler(photos))
 	s.initInterestRoutes(interestHandler.NewHandler(interests))
 	s.initLocationRoutes(locationHandler.NewHandler(locations))
+	s.initCourseRoutes(courseHandler.NewHandler(courseService.NewService(s.pgdb), binder))
 
 	return nil
 }
@@ -89,4 +92,11 @@ func (s *Server) initInterestRoutes(handler *interestHandler.Handler) {
 func (s *Server) initLocationRoutes(handler *locationHandler.Handler) {
 	profileRoutes := authUserRouter.Group("/profile")
 	profileRoutes.GET("/location/ip", handler.LookupByIP)
+}
+
+func (s *Server) initCourseRoutes(handler *courseHandler.Handler) {
+	courseRoutes := authUserRouter.Group("/profile/academic/courses")
+	courseRoutes.GET("", handler.List)
+	courseRoutes.GET("/me", handler.GetMine)
+	courseRoutes.PUT("/me", handler.SaveMine)
 }
