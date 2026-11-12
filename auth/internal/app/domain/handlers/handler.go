@@ -22,6 +22,7 @@ var errStatusMap = map[error]int{
 	service.ErrUnauthenticated: http.StatusUnauthorized,
 	service.ErrFailedCache:     http.StatusInternalServerError,
 	service.ErrFailedPublish:   http.StatusInternalServerError,
+	service.ErrConsentRequired: http.StatusUnprocessableEntity,
 }
 
 type Handler struct {
@@ -40,6 +41,15 @@ func (h *Handler) Register(ctx *gin.Context) {
 		return
 	}
 
+	if !payload.ConsentAccepted {
+		ctx.JSON(http.StatusUnprocessableEntity, response.ValidationErrorResponse(
+			validation.FieldErrors{"consent_accepted": service.ErrConsentRequired.Error()},
+		))
+		errorhandler.FailOnError(service.ErrConsentRequired, "validation error")
+
+		return
+	}
+
 	inputDto := userServiceDto.CreateDTO{
 		Email:    payload.Email,
 		Password: payload.Password,
@@ -54,8 +64,9 @@ func (h *Handler) Register(ctx *gin.Context) {
 	}
 
 	user, err := h.service.Register(ctx, serviceDto.RegisterDTO{
-		Email:    payload.Email,
-		Password: payload.Password,
+		Email:           payload.Email,
+		Password:        payload.Password,
+		ConsentAccepted: payload.ConsentAccepted,
 	})
 	if err != nil {
 		if code, ok := errStatusMap[err]; ok {
