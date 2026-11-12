@@ -9,7 +9,8 @@ Content-Type: application/json
 
 {
   "email": "{{email}}",
-  "password": "{{password}}"
+  "password": "{{password}}",
+  "consent_accepted": true
 }
 
 ### Step 2: Register second user
@@ -18,7 +19,8 @@ Content-Type: application/json
 
 {
   "email": "{{second_email}}",
-  "password": "{{second_password}}"
+  "password": "{{second_password}}",
+  "consent_accepted": true
 }
 
 ### Step 3: Login first user
@@ -27,7 +29,8 @@ Content-Type: application/json
 
 {
   "email": "{{email}}",
-  "password": "{{password}}"
+  "password": "{{password}}",
+  "consent_accepted": true
 }
 
 > {%
@@ -41,7 +44,8 @@ Content-Type: application/json
 
 {
   "email": "{{second_email}}",
-  "password": "{{second_password}}"
+  "password": "{{second_password}}",
+  "consent_accepted": true
 }
 
 > {%
