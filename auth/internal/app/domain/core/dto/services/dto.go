@@ -6,8 +6,9 @@ type LoginDTO struct {
 }
 
 type RegisterDTO struct {
-	Email    string
-	Password string
+	Email           string
+	Password        string
+	ConsentAccepted bool
 }
 
 type RefreshTokenDTO struct {

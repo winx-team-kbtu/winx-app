@@ -1,0 +1,269 @@
+package team
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	headercontract "winx-profile/internal/app/core/contracts/microservices/header-contract"
+	"winx-profile/internal/app/core/validation"
+	service "winx-profile/internal/app/domain/services/team"
+	"winx-profile/internal/app/models/models"
+	pkgvalidation "winx-profile/pkg/validation"
+
+	"github.com/gin-gonic/gin"
+)
+
+type fakeService struct {
+	err   error
+	calls int
+}
+
+func (f *fakeService) Create(_ context.Context, _, courseID int64, name string) (models.Team, error) {
+	f.calls++
+	if f.err != nil {
+		return models.Team{}, f.err
+	}
+
+	return models.Team{ID: 1, CourseID: courseID, Name: name, JoinCode: "ABC234", MemberCount: 1}, nil
+}
+
+func (f *fakeService) GetMine(_ context.Context, _, courseID int64) (models.Team, error) {
+	f.calls++
+	if f.err != nil {
+		return models.Team{}, f.err
+	}
+
+	return models.Team{ID: 1, CourseID: courseID, Name: "T", JoinCode: "ABC234", MemberCount: 1}, nil
+}
+
+func (f *fakeService) Join(_ context.Context, _ int64, code string) (models.Team, error) {
+	f.calls++
+	if f.err != nil {
+		return models.Team{}, f.err
+	}
+
+	return models.Team{ID: 1, CourseID: 10, Name: "T", JoinCode: code, MemberCount: 2}, nil
+}
+
+func (f *fakeService) Roster(_ context.Context, _, courseID int64) (models.TeamRoster, error) {
+	f.calls++
+	if f.err != nil {
+		return models.TeamRoster{}, f.err
+	}
+
+	return models.TeamRoster{
+		TeamID: 1, TeamName: "Alpha", CourseID: courseID, CourseCode: "ALG201", CourseTitle: "Algorithms",
+		Members: []models.DeckCandidate{{UserID: 1, Name: "Ann", Skills: []string{"Go"}, PreferredRole: "Backend"}, {UserID: 2, Name: "Bob"}},
+	}, nil
+}
+
+func newRouter(t *testing.T, svc service.Service, authenticated bool) *gin.Engine {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+
+	v, err := pkgvalidation.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h := NewHandler(svc, validation.NewBinder(v))
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		if authenticated {
+			ctx := context.WithValue(c.Request.Context(), headercontract.AuthUserKey{},
+				headercontract.AuthUser{ID: 7, Email: "u@example.com"})
+			c.Request = c.Request.WithContext(ctx)
+		}
+	})
+	r.POST("/teams", h.Store)
+	r.GET("/teams/me", h.GetMine)
+	r.POST("/teams/join", h.Join)
+	r.GET("/teams/roster", h.Roster)
+
+	return r
+}
+
+func do(r http.Handler, method, target, body string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(method, target, bytes.NewBufferString(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	return rec
+}
+
+func TestStore_Created(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodPost, "/teams", `{"course_id":10,"name":"Dream Team"}`)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
+		t.Fatalf("one-member team must be forming: %s", rec.Body)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"join_code":"ABC234"`)) {
+		t.Fatalf("join code missing: %s", rec.Body)
+	}
+}
+
+func TestStore_ErrorMapping(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want int
+	}{
+		"already in team":     {service.ErrAlreadyInTeam, http.StatusConflict},
+		"course not selected": {service.ErrCourseNotSelected, http.StatusForbidden},
+		"invalid name":        {service.ErrInvalidName, http.StatusUnprocessableEntity},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rec := do(newRouter(t, &fakeService{err: tc.err}, true), http.MethodPost, "/teams", `{"course_id":10,"name":"Team"}`)
+			if rec.Code != tc.want {
+				t.Fatalf("expected %d, got %d", tc.want, rec.Code)
+			}
+		})
+	}
+}
+
+func TestStore_InvalidPayloadIs422WithoutServiceCall(t *testing.T) {
+	for _, body := range []string{`{}`, `{"course_id":10}`, `{"name":"Team"}`, `{"course_id":-1,"name":"Team"}`} {
+		svc := &fakeService{}
+
+		if rec := do(newRouter(t, svc, true), http.MethodPost, "/teams", body); rec.Code != http.StatusUnprocessableEntity || svc.calls != 0 {
+			t.Fatalf("%s: expected 422 and no call, got %d calls=%d", body, rec.Code, svc.calls)
+		}
+	}
+}
+
+func TestGetMine_NotFoundIs404(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{err: service.ErrNotFound}, true), http.MethodGet, "/teams/me?course_id=10", "")
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec.Code)
+	}
+}
+
+func TestGetMine_RequiresCourseID(t *testing.T) {
+	if rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/me", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", rec.Code)
+	}
+}
+
+func TestRequiresAuthUser(t *testing.T) {
+	r := newRouter(t, &fakeService{}, false)
+
+	if rec := do(r, http.MethodPost, "/teams", `{"course_id":10,"name":"Team"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("POST expected 401, got %d", rec.Code)
+	}
+
+	if rec := do(r, http.MethodGet, "/teams/me?course_id=10", ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("GET expected 401, got %d", rec.Code)
+	}
+}
+
+func TestJoin_Success(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body)
+	}
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"member_count":2`)) || !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
+		t.Fatalf("unexpected body %s", rec.Body)
+	}
+}
+
+func TestJoin_ErrorMapping(t *testing.T) {
+	cases := map[string]struct {
+		err  error
+		want int
+	}{
+		"invalid code": {service.ErrNotFound, http.StatusNotFound},
+		"duplicate":    {service.ErrAlreadyInTeam, http.StatusConflict},
+		"wrong course": {service.ErrCourseNotSelected, http.StatusForbidden},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rec := do(newRouter(t, &fakeService{err: tc.err}, true), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`)
+			if rec.Code != tc.want {
+				t.Fatalf("expected %d, got %d", tc.want, rec.Code)
+			}
+		})
+	}
+}
+
+func TestJoin_InvalidPayloadIs422(t *testing.T) {
+	svc := &fakeService{}
+
+	if rec := do(newRouter(t, svc, true), http.MethodPost, "/teams/join", `{}`); rec.Code != http.StatusUnprocessableEntity || svc.calls != 0 {
+		t.Fatalf("expected 422 and no call, got %d calls=%d", rec.Code, svc.calls)
+	}
+}
+
+func TestJoin_RequiresAuthUser(t *testing.T) {
+	if rec := do(newRouter(t, &fakeService{}, false), http.MethodPost, "/teams/join", `{"join_code":"ABC234"}`); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestRoster_ExposesOnlyAcademicFields(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster?course_id=10", "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body)
+	}
+
+	var body struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+
+	topAllowed := map[string]bool{"team_id": true, "team_name": true, "size": true, "status": true, "course": true, "members": true}
+	for key := range body.Data {
+		if !topAllowed[key] {
+			t.Fatalf("roster leaks field %q (join_code, contacts etc. must not be here)", key)
+		}
+	}
+
+	var members []map[string]any
+	if err := json.Unmarshal(body.Data["members"], &members); err != nil || len(members) != 2 {
+		t.Fatalf("members wrong: %s err=%v", body.Data["members"], err)
+	}
+
+	memberAllowed := map[string]bool{"user_id": true, "name": true, "skills": true, "preferred_role": true}
+	for _, m := range members {
+		for key := range m {
+			if !memberAllowed[key] {
+				t.Fatalf("member exposes non-academic field %q", key)
+			}
+		}
+	}
+}
+
+func TestRoster_Rules(t *testing.T) {
+	if rec := do(newRouter(t, &fakeService{err: service.ErrNotFound}, true), http.MethodGet, "/teams/roster?course_id=10", ""); rec.Code != http.StatusNotFound {
+		t.Fatalf("non-member expected 404, got %d", rec.Code)
+	}
+
+	if rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster", ""); rec.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("missing course_id expected 422, got %d", rec.Code)
+	}
+
+	if rec := do(newRouter(t, &fakeService{}, false), http.MethodGet, "/teams/roster?course_id=10", ""); rec.Code != http.StatusUnauthorized {
+		t.Fatalf("unauthenticated expected 401, got %d", rec.Code)
+	}
+}
+
+func TestRoster_ReportsSizeAndStatus(t *testing.T) {
+	rec := do(newRouter(t, &fakeService{}, true), http.MethodGet, "/teams/roster?course_id=10", "")
+
+	if !bytes.Contains(rec.Body.Bytes(), []byte(`"size":2`)) || !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"forming"`)) {
+		t.Fatalf("roster must report size and status: %s", rec.Body)
+	}
+}

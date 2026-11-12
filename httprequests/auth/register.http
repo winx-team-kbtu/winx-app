@@ -4,7 +4,8 @@ Content-Type: application/json
 
 {
   "email": "{{email}}",
-  "password": "{{password}}"
+  "password": "{{password}}",
+  "consent_accepted": true
 }
 
 > {%
@@ -19,5 +20,6 @@ Content-Type: application/json
 
 {
   "email": "{{second_email}}",
-  "password": "{{second_password}}"
+  "password": "{{second_password}}",
+  "consent_accepted": true
 }

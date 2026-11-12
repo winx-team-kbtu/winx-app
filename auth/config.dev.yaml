@@ -36,3 +36,8 @@ graylog:
   host: graylog-winx
   port: 12201
   source: auth
+
+services:
+  profile:
+    url: http://profile-winx:3003
+    api_key: winx-key

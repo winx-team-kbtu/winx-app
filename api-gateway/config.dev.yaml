@@ -24,6 +24,11 @@ services:
     url: http://chat-winx:3006
     api_key: winx-key
 
+pilot:
+  # true: Social features (photos, swipes, matches, recommendations, chat) are disabled.
+  # Can be overridden with the PILOT_MODE environment variable.
+  mode: true
+
 swagger:
   title: Winx API Gateway
   description: API gateway entrypoint for Winx services.

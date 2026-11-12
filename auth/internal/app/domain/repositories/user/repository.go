@@ -35,6 +35,13 @@ func (r *repository) Create(ctx context.Context, input dto.CreateDTO) (models.Us
 		Password: input.Password,
 	}
 
+	if input.ConsentNoticeVersion != "" {
+		version := input.ConsentNoticeVersion
+		acceptedAt := input.ConsentAcceptedAt
+		user.ConsentNoticeVersion = &version
+		user.ConsentAcceptedAt = &acceptedAt
+	}
+
 	if err := r.db.WithContext(ctx).Create(&user).Error; err != nil {
 		return models.User{}, fmt.Errorf("failed to create User: %w", err)
 	}

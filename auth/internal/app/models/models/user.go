@@ -12,6 +12,15 @@ type User struct {
 	Role      *Role     `json:"role,omitempty" gorm:"foreignKey:RoleID"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+
+	ConsentNoticeVersion *string    `json:"consent_notice_version,omitempty"`
+	ConsentAcceptedAt    *time.Time `json:"consent_accepted_at,omitempty"`
+
+	// DeletionRequestedAt is set while an account deletion is pending.
+	DeletionRequestedAt   *time.Time `json:"-"`
+	DeletionAttempts      int        `json:"-"`
+	DeletionLastAttemptAt *time.Time `json:"-"`
+	DeletionLastError     *string    `json:"-"`
 }
 
 func (User) TableName() string          { return "users" }
