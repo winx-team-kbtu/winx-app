@@ -13,6 +13,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	statusDeleted = "deleted"
+	statusPending = "pending"
+)
+
 type DeleteDTO struct {
 	Password string `json:"password" validate:"required,max=255"`
 }
@@ -48,8 +53,11 @@ func (h *Handler) Delete(ctx *gin.Context) {
 		case errors.Is(err, service.ErrNotFound):
 			ctx.JSON(http.StatusNotFound, response.ErrorResponse(service.ErrNotFound.Error()))
 		case errors.Is(err, service.ErrPending):
-			// The account is already blocked, but cleanup did not finish. Not a success.
-			ctx.JSON(http.StatusServiceUnavailable, response.ErrorResponse(service.ErrPending.Error()))
+			// The account is already blocked and its sessions are revoked, but cleanup did not
+			// finish. The request is accepted and retried in the background; it is not "deleted".
+			ctx.JSON(http.StatusAccepted, response.SuccessResponse(
+				map[string]string{"status": statusPending}, service.ErrPending.Error(),
+			))
 		default:
 			ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		}
@@ -59,5 +67,5 @@ func (h *Handler) Delete(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, response.SuccessResponse(nil, response.Deleted))
+	ctx.JSON(http.StatusOK, response.SuccessResponse(map[string]string{"status": statusDeleted}, response.Deleted))
 }

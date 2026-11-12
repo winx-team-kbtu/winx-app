@@ -82,6 +82,7 @@ func (s *Server) initDomainRoutes() {
 		s.cache,
 		profileclient.New(configs.Config.Services.Profile.URL, configs.Config.Services.Profile.APIKey, 30*time.Second),
 	)
+	s.deletions = accountService
 	handlerAccount := accountHandler.NewHandler(accountService, binder)
 
 	s.initAuthRoutes(handlerAuth, authUserMiddleware)
