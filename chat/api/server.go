@@ -11,6 +11,7 @@ import (
 	"winx-chat/configs"
 	apphttp "winx-chat/internal/app/core/http"
 	"winx-chat/internal/app/core/http/middleware"
+	"winx-chat/internal/app/domain/accountguard"
 	eventdto "winx-chat/internal/app/domain/core/dto/services/event"
 	chatService "winx-chat/internal/app/domain/services/chat"
 	msgService "winx-chat/internal/app/domain/services/message"
@@ -34,6 +35,7 @@ type Server struct {
 	cache       cache.Cache
 	validator   *validation.Validator
 	chatService chatService.Service
+	guard       accountGuard
 	msgService  msgService.Service
 	hub         *Hub
 	readers     []*kafka.Consumer
@@ -41,6 +43,11 @@ type Server struct {
 	groupID     string
 	brokers     []string
 	topics      kafkaTopics
+}
+
+// accountGuard lets the consumer skip events about users that were deleted or are being deleted.
+type accountGuard interface {
+	UsersActive(ctx context.Context, ids ...int64) (bool, error)
 }
 
 type kafkaTopics struct {
@@ -88,6 +95,7 @@ func newServer() (*Server, error) {
 	}
 
 	s.chatService = chatService.NewService(db)
+	s.guard = accountguard.New(db)
 	s.msgService = msgService.NewService(db)
 
 	if err := s.initRoutes(); err != nil {
@@ -195,6 +203,20 @@ func (s *Server) handleMatchCreated(ctx context.Context, payload []byte) error {
 	var event eventdto.MatchCreatedDTO
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return fmt.Errorf("decode match.created event: %w", err)
+	}
+
+	active, err := s.guard.UsersActive(ctx, event.UserOneID, event.UserTwoID)
+	if err != nil {
+		return fmt.Errorf("check users for match.created: %w", err)
+	}
+
+	if !active {
+		logger.Log.Infof(
+			"skip match.created: match=%d involves a deleted or deleting user (users %d, %d)",
+			event.MatchID, event.UserOneID, event.UserTwoID,
+		)
+
+		return nil
 	}
 
 	chat, err := s.chatService.CreateFromMatch(ctx, event.MatchID, event.UserOneID, event.UserTwoID)

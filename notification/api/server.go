@@ -12,6 +12,7 @@ import (
 	"winx-notification/configs"
 	"winx-notification/internal/app/core/http"
 	"winx-notification/internal/app/core/http/middleware"
+	"winx-notification/internal/app/domain/accountguard"
 	eventdto "winx-notification/internal/app/domain/core/dto/services/event"
 	userrepo "winx-notification/internal/app/domain/repositories/user"
 	"winx-notification/internal/app/notifications"
@@ -39,11 +40,19 @@ type Server struct {
 	mailer     email.Mailer
 	store      *notifications.Store
 	userRepo   userrepo.Repository
+	guard      accountGuard
 	readers    []*kafka.Consumer
 	httpServer *http.Server
 	groupID    string
 	brokers    []string
 	topics     kafkaTopics
+}
+
+// accountGuard lets consumers skip events about accounts that were deleted or are being deleted.
+type accountGuard interface {
+	AccountActive(ctx context.Context, id int64, email string) (bool, error)
+	EmailActive(ctx context.Context, email string) (bool, error)
+	UserActive(ctx context.Context, id int64) (bool, error)
 }
 
 type kafkaTopics struct {
@@ -115,6 +124,7 @@ func newServer() (*Server, error) {
 	}
 	s.store = notifications.NewStore(db)
 	s.userRepo = userrepo.NewRepository(db)
+	s.guard = accountguard.New(db)
 
 	if err := s.initRoutes(); err != nil {
 		return nil, fmt.Errorf("init routes: %w", err)
@@ -229,6 +239,17 @@ func (s *Server) handleUserRegistered(ctx context.Context, payload []byte) error
 		return fmt.Errorf("decode user registered event: %w", err)
 	}
 
+	active, err := s.guard.AccountActive(ctx, event.UserID, event.Email)
+	if err != nil {
+		return fmt.Errorf("check account for welcome notification: %w", err)
+	}
+
+	if !active {
+		logger.Log.Infof("skip welcome notification: account %d is gone or being deleted", event.UserID)
+
+		return nil
+	}
+
 	subject := "Welcome to Winx"
 	body := fmt.Sprintf(
 		"Hi,\n\nYour account has been created successfully on %s.\n\nThanks,\n%s",
@@ -259,6 +280,17 @@ func (s *Server) handleUserPassword(ctx context.Context, payload []byte) error {
 	var event eventdto.UserPasswordDTO
 	if err := json.Unmarshal(payload, &event); err != nil {
 		return fmt.Errorf("decode user password event: %w", err)
+	}
+
+	active, err := s.guard.EmailActive(ctx, event.Email)
+	if err != nil {
+		return fmt.Errorf("check account for password reset notification: %w", err)
+	}
+
+	if !active {
+		logger.Log.Infof("skip password reset notification: account is gone or being deleted")
+
+		return nil
 	}
 
 	subject := "Your Winx password reset PIN"
@@ -300,6 +332,17 @@ func (s *Server) handleMatchCreated(ctx context.Context, payload []byte) error {
 	}
 
 	for _, userID := range []int64{event.UserOneID, event.UserTwoID} {
+		active, err := s.guard.UserActive(ctx, userID)
+		if err != nil {
+			logger.Log.Errorf("match notification: check user %d: %v", userID, err)
+			continue
+		}
+
+		if !active {
+			logger.Log.Infof("skip match notification: user %d is gone or being deleted", userID)
+			continue
+		}
+
 		user, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil {
 			logger.Log.Errorf("match notification: get user %d: %v", userID, err)
