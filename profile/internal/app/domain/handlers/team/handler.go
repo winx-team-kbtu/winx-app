@@ -96,3 +96,27 @@ func (h *Handler) GetMine(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewResource(team), response.OK))
 }
+
+func (h *Handler) Join(ctx *gin.Context) {
+	authUser, err := headercontract.GetAuthUser(ctx.Request.Context())
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, response.ErrorResponse(response.Unauthorized))
+		errorhandler.FailOnError(err, "failed to get auth user")
+
+		return
+	}
+
+	payload, ok := validation.BindAndValidate[dto.JoinDTO](h.binder, ctx)
+	if !ok {
+		return
+	}
+
+	team, err := h.service.Join(ctx.Request.Context(), authUser.ID, payload.JoinCode)
+	if err != nil {
+		fail(ctx, err, "JoinTeam service error")
+
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response.SuccessResponse(resources.NewResource(team), response.Updated))
+}
