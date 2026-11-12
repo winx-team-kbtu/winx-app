@@ -55,9 +55,11 @@ func (r *repository) ListCandidates(ctx context.Context, userID, courseID, limit
 		   LEFT JOIN profiles p            ON p.user_id = uc.user_id
 		   LEFT JOIN academic_profiles ap  ON ap.user_id = uc.user_id
 		  WHERE uc.course_id = ? AND uc.user_id <> ?
+		    AND NOT EXISTS (SELECT 1 FROM course_choices cc
+		                     WHERE cc.user_id = ? AND cc.candidate_id = uc.user_id AND cc.course_id = uc.course_id)
 		  ORDER BY uc.user_id
 		  LIMIT ? OFFSET ?`,
-		courseID, userID, limit, offset,
+		courseID, userID, userID, limit, offset,
 	).Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("list deck candidates: %w", err)
 	}
