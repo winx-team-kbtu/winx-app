@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	profileclient "auth/adapters/profile-client"
 	oauthHelper "auth/internal/app/core/helpers/oauth"
 	repository "auth/internal/app/domain/repositories/deletion"
+	"auth/internal/app/models/models"
 	"auth/pkg/cache"
 
 	"github.com/redis/go-redis/v9"
@@ -49,7 +51,7 @@ func setup(t *testing.T) env {
 	require.NoError(t, rdb.Ping(context.Background()).Err())
 
 	t.Cleanup(func() {
-		db.Exec(`DELETE FROM users WHERE id BETWEEN 601 AND 610`)
+		db.Exec(`DELETE FROM users WHERE id BETWEEN 601 AND 630`)
 		db.Exec(`DELETE FROM notifications WHERE recipient LIKE 'del%@test.io'`)
 		db.Exec(`DELETE FROM password_resets WHERE email LIKE 'del%@test.io'`)
 		db.Exec(`DELETE FROM oauth_tokens WHERE user_id IN ('601','602')`)
@@ -223,4 +225,211 @@ func TestIntegration_MarkDeletionRequestedKeepsFirstTimestamp(t *testing.T) {
 	require.NoError(t, e.db.Raw(`SELECT deletion_requested_at FROM users WHERE id = 601`).Row().Scan(&second))
 
 	assert.True(t, first.Equal(second), "repeating the request must keep the original time")
+}
+
+type userRow = models.User
+
+func intersect(a, b []int64) []int64 {
+	set := map[int64]bool{}
+	for _, v := range a {
+		set[v] = true
+	}
+
+	var out []int64
+
+	for _, v := range b {
+		if set[v] {
+			out = append(out, v)
+		}
+	}
+
+	return out
+}
+
+func (e env) markPending(t *testing.T, id int64, attempts int, lastAttemptAgo time.Duration) {
+	t.Helper()
+
+	if lastAttemptAgo == 0 {
+		require.NoError(t, e.db.Exec(`UPDATE users SET deletion_requested_at = NOW(), deletion_attempts = ?, deletion_last_attempt_at = NULL WHERE id = ?`, attempts, id).Error)
+
+		return
+	}
+
+	require.NoError(t, e.db.Exec(
+		`UPDATE users SET deletion_requested_at = NOW(), deletion_attempts = ?,
+		        deletion_last_attempt_at = NOW() - make_interval(secs => ?) WHERE id = ?`,
+		attempts, lastAttemptAgo.Seconds(), id).Error)
+}
+
+func claimedIDs(users []userRow) []int64 {
+	ids := make([]int64, 0, len(users))
+	for _, u := range users {
+		ids = append(ids, u.ID)
+	}
+
+	return ids
+}
+
+func TestIntegration_ClaimPendingHonoursBackoff(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	repo := repository.NewRepository(e.db)
+
+	for id := int64(601); id <= 606; id++ {
+		e.createUser(t, id, fmt.Sprintf("del%d@test.io", id), "pw")
+	}
+
+	e.markPending(t, 601, 0, 0)               // never tried: due now
+	e.markPending(t, 602, 1, 2*time.Minute)   // wait 60s, 120s passed: due
+	e.markPending(t, 603, 1, 10*time.Second)  // wait 60s, 10s passed: not due
+	e.markPending(t, 604, 10, 59*time.Minute) // wait capped at 1h, 59m passed: not due
+	e.markPending(t, 605, 10, 61*time.Minute) // wait capped at 1h, 61m passed: due
+	// 606 is a normal account that never asked for deletion.
+
+	claimed, err := repo.ClaimPending(ctx, 50)
+	require.NoError(t, err)
+
+	assert.ElementsMatch(t, []int64{601, 602, 605}, claimedIDs(claimed))
+
+	for _, u := range claimed {
+		assert.Positive(t, u.DeletionAttempts, "claiming counts the attempt")
+		require.NotNil(t, u.DeletionLastAttemptAt)
+	}
+
+	again, err := repo.ClaimPending(ctx, 50)
+	require.NoError(t, err)
+	assert.Empty(t, again, "a just-claimed account is not handed out again until its backoff passes")
+
+	assert.EqualValues(t, 0, e.count(t, `SELECT deletion_attempts FROM users WHERE id = 606`), "normal accounts are never touched")
+}
+
+func TestIntegration_ClaimPendingRespectsLimitAndOrder(t *testing.T) {
+	e := setup(t)
+	repo := repository.NewRepository(e.db)
+
+	for id := int64(601); id <= 605; id++ {
+		e.createUser(t, id, fmt.Sprintf("del%d@test.io", id), "pw")
+		e.markPending(t, id, 0, 0)
+	}
+
+	first, err := repo.ClaimPending(context.Background(), 2)
+	require.NoError(t, err)
+	assert.Len(t, first, 2)
+
+	second, err := repo.ClaimPending(context.Background(), 10)
+	require.NoError(t, err)
+	assert.Len(t, second, 3, "the rest, none of the first two again")
+
+	assert.Empty(t, intersect(claimedIDs(first), claimedIDs(second)))
+}
+
+func TestIntegration_ConcurrentWorkersNeverClaimTheSameAccount(t *testing.T) {
+	e := setup(t)
+	repo := repository.NewRepository(e.db)
+
+	const accounts = 20
+
+	for id := int64(601); id < 601+accounts; id++ {
+		e.createUser(t, id, fmt.Sprintf("del%d@test.io", id), "pw")
+		e.markPending(t, id, 0, 0)
+	}
+
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		results [][]int64
+	)
+
+	start := make(chan struct{})
+
+	for w := 0; w < 5; w++ {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			<-start
+
+			users, err := repo.ClaimPending(context.Background(), 7)
+			if err != nil {
+				t.Errorf("claim: %v", err)
+
+				return
+			}
+
+			mu.Lock()
+			results = append(results, claimedIDs(users))
+			mu.Unlock()
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+
+	seen := map[int64]int{}
+	for _, ids := range results {
+		for _, id := range ids {
+			seen[id]++
+		}
+	}
+
+	for id, n := range seen {
+		assert.Equal(t, 1, n, "account %d was claimed by %d workers", id, n)
+	}
+
+	assert.Len(t, seen, accounts, "every pending account is claimed exactly once across the workers")
+}
+
+func TestIntegration_FailedDeletionIsRetriedByTheWorkerUntilComplete(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+
+	e.createUser(t, 601, "del601@test.io", "pw-601")
+	e.db.Exec(`INSERT INTO oauth_tokens (client_id, user_id, access, refresh) VALUES ('c', '601', 'tokA', 'refA')`)
+
+	var status, calls atomic.Int32
+	status.Store(http.StatusBadGateway)
+
+	srv := e.profileServer(&status, &calls)
+	defer srv.Close()
+
+	svc := e.service(srv.URL)
+
+	require.ErrorIs(t, svc.Delete(ctx, 601, "pw-601"), ErrPending)
+
+	var attempts int
+	var lastError string
+
+	require.NoError(t, e.db.Raw(`SELECT deletion_attempts, COALESCE(deletion_last_error, '') FROM users WHERE id = 601`).Row().Scan(&attempts, &lastError))
+	assert.Equal(t, 1, attempts)
+	assert.Contains(t, lastError, "delete profile data")
+	assert.Contains(t, lastError, "502")
+
+	// The backoff has not passed, so the worker leaves it alone.
+	report, err := svc.RetryPending(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, report.Attempted)
+
+	// Time passes, the worker retries, the profile service is still down.
+	e.db.Exec(`UPDATE users SET deletion_last_attempt_at = NOW() - INTERVAL '10 minutes' WHERE id = 601`)
+
+	report, err = svc.RetryPending(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, Report{Attempted: 1, Failed: 1}, report)
+	assert.EqualValues(t, 1, e.count(t, `SELECT count(*) FROM users WHERE id = 601`), "still blocked, still retryable")
+	assert.EqualValues(t, 2, e.count(t, `SELECT deletion_attempts FROM users WHERE id = 601`))
+
+	// The profile service recovers and the next pass completes the deletion.
+	status.Store(http.StatusOK)
+	e.db.Exec(`UPDATE users SET deletion_last_attempt_at = NOW() - INTERVAL '10 minutes' WHERE id = 601`)
+
+	report, err = svc.RetryPending(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, Report{Attempted: 1, Completed: 1}, report)
+	assert.Zero(t, e.count(t, `SELECT count(*) FROM users WHERE id = 601`), "deletion completed by the worker")
+	assert.Zero(t, e.count(t, `SELECT count(*) FROM oauth_tokens WHERE user_id = '601'`))
+
+	report, err = svc.RetryPending(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, report.Attempted, "nothing left to retry")
 }
