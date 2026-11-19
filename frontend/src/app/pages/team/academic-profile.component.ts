@@ -7,13 +7,14 @@ import { Profile, ProfileService } from '../../core/services/profile.service';
 import { AuthService } from '../../core/services/auth.service';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { SheetComponent } from '../../shared/sheet/sheet.component';
+import { DeleteAccountComponent } from '../../shared/delete-account/delete-account.component';
 import { courseName } from '../../shared/text';
 
 type Section = 'basics' | 'courses' | 'skills' | 'role';
 @Component({
   selector: 'app-academic-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SheetComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SheetComponent, DeleteAccountComponent],
   templateUrl: './academic-profile.component.html',
   styleUrl: './team.css',
 })

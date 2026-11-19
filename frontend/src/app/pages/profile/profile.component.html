@@ -47,6 +47,7 @@
       </button>
     </div>
     <button class="logout-link" (click)="auth.logout()">Выйти из аккаунта</button>
+    <app-delete-account />
   </ng-container>
   <app-sheet
     *ngIf="editing as section"

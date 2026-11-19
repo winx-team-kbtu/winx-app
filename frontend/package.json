@@ -8,7 +8,9 @@
     "test:session": "node --test tests/auth-session.test.cjs",
     "test:swipes": "node --test tests/swipe-card.test.cjs",
     "watch": "ng build --watch --configuration development",
-    "test:onboarding": "node --test tests/onboarding.test.cjs"
+    "test:onboarding": "node --test tests/onboarding.test.cjs",
+    "test:account": "node --test tests/account-deletion.test.cjs",
+    "test:privacy": "node --test tests/privacy-notice.test.cjs"
   },
   "private": true,
   "dependencies": {

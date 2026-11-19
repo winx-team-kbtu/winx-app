@@ -35,8 +35,9 @@ var (
 )
 
 // ConsentNoticeVersion identifies the personal data notice shown at
-// registration. Bump it whenever the notice text changes (SCRUM-48).
-const ConsentNoticeVersion = "pilot-2026-11-v1"
+// registration. Bump it whenever the notice text changes (SCRUM-48). It must equal
+// PRIVACY_NOTICE_VERSION in frontend/src/app/shared/privacy-notice.ts; a frontend test checks that.
+const ConsentNoticeVersion = "pilot-2026-11-v2"
 
 type Service interface {
 	Login(ctx context.Context, dto dto.LoginDTO) (tokenService.Response, int, error)

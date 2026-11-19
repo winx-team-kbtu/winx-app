@@ -45,6 +45,32 @@
 .auth-footer a:hover {
   text-decoration: underline;
 }
+.privacy-notice {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--soft);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.privacy-notice h2 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.privacy-notice h3 {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 10px 0 4px;
+}
+.privacy-notice ul {
+  margin: 0 0 0 16px;
+  padding: 0;
+}
 .consent-field {
   display: flex;
   align-items: flex-start;
