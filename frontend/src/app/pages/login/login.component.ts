@@ -8,6 +8,17 @@ import { safeReturnUrl } from '../../core/services/auth-session';
 import { ProfileService } from '../../core/services/profile.service';
 import { ModeService } from '../../core/services/mode.service';
 
+// Notices for the `reason` query parameter. Deletion texts stay truthful: a pending deletion is
+// not reported as finished, and backups/logs are not claimed to be erased.
+const LOGIN_NOTICES: Record<string, string> = {
+  expired: 'Сессия завершена. Войдите снова.',
+  'signed-out': 'Вы вышли из аккаунта в другой вкладке.',
+  deleted:
+    'Аккаунт удалён. Данные профиля и выбранные предметы удалены, вход и старые сессии больше не работают. Резервные копии и технические журналы могут храниться дольше.',
+  'deletion-pending':
+    'Запрос на удаление принят, но очистка данных ещё не завершена. Вход в аккаунт заблокирован, сессии закрыты, сервер повторяет очистку автоматически.',
+};
+
 @Component({
   selector: 'app-login',
   standalone: true,
@@ -30,12 +41,7 @@ export class LoginComponent {
     route: ActivatedRoute,
   ) {
     this.returnUrl = safeReturnUrl(route.snapshot.queryParamMap.get('returnUrl'));
-    this.notice =
-      route.snapshot.queryParamMap.get('reason') === 'expired'
-        ? 'Сессия завершена. Войдите снова.'
-        : route.snapshot.queryParamMap.get('reason') === 'signed-out'
-          ? 'Вы вышли из аккаунта в другой вкладке.'
-          : '';
+    this.notice = LOGIN_NOTICES[route.snapshot.queryParamMap.get('reason') ?? ''] ?? '';
   }
   submit(): void {
     if (this.loading) return;

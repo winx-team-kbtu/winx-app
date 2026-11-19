@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { authError } from '../../core/services/auth-feedback';
 import { safeReturnUrl } from '../../core/services/auth-session';
+import { PRIVACY_NOTICE } from '../../shared/privacy-notice';
 
 @Component({
   selector: 'app-register',
@@ -16,6 +17,7 @@ import { safeReturnUrl } from '../../core/services/auth-session';
 export class RegisterComponent {
   email = '';
   password = '';
+  readonly notice = PRIVACY_NOTICE;
   consentAccepted = false;
   loading = false;
   error = '';

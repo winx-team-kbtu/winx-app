@@ -175,6 +175,16 @@ export class AuthService implements OnDestroy {
     );
   }
 
+  /**
+   * Clears browser state after the server has already revoked this session (account deletion).
+   * Unlike logout() it does not call the server again and does not navigate.
+   */
+  endSessionLocally(id: string | null): void {
+    if (this.sessionId() !== id) return;
+    this.revision++;
+    this.commit(emptySession());
+  }
+
   logout(): void {
     this.syncSession();
     const snapshot = this.session();

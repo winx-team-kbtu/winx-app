@@ -5,13 +5,14 @@ import { FormsModule } from '@angular/forms';
 import { ProfileService, Profile, Interest } from '../../core/services/profile.service';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { SheetComponent } from '../../shared/sheet/sheet.component';
+import { DeleteAccountComponent } from '../../shared/delete-account/delete-account.component';
 import { AuthService } from '../../core/services/auth.service';
 import { optionName } from '../../shared/text';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent, SheetComponent],
+  imports: [CommonModule, FormsModule, IconComponent, SheetComponent, DeleteAccountComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css',
 })

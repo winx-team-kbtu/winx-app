@@ -34,13 +34,22 @@
           minlength="8"
         />
       </div>
+      <section class="privacy-notice" aria-labelledby="privacy-notice-title" tabindex="0">
+        <h2 id="privacy-notice-title">Уведомление о персональных данных</h2>
+        <div *ngFor="let section of notice">
+          <h3>{{ section.title }}</h3>
+          <ul>
+            <li *ngFor="let item of section.items">{{ item }}</li>
+          </ul>
+        </div>
+      </section>
       <label class="consent-field"
         ><input
           type="checkbox"
           [(ngModel)]="consentAccepted"
           name="consentAccepted"
           required
-        /><span>Согласен на обработку данных аккаунта и профиля.</span></label
+        /><span>Я прочитал(а) уведомление и согласен(на) на обработку этих данных.</span></label
       >
       <button
         type="submit"
