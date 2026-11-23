@@ -24,6 +24,11 @@ type Conversation struct {
 	LastMessageAt *time.Time `json:"last_message_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	CanWrite      bool       `json:"can_write"`
+
+	InvitationID       *int64  `json:"invitation_id"`
+	InviterID          *int64  `json:"inviter_id"`
+	InvitationStatus   *string `json:"invitation_status"`
+	InvitationTeamName *string `json:"invitation_team_name"`
 }
 type ConversationMessage struct {
 	ID        int64     `json:"id"`

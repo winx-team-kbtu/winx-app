@@ -89,8 +89,8 @@
               type="checkbox"
               [checked]="selectedIds.includes(course.id)"
               (change)="toggleCourse(course.id)"
-              [attr.aria-label]="label(course.code)"
-            /><span>{{ label(course.code) }}</span></label
+              [attr.aria-label]="label(course.code, course.title)"
+            /><span>{{ label(course.code, course.title) }}</span></label
           >
         </div>
         <div *ngIf="section === 'skills'" class="form-group">

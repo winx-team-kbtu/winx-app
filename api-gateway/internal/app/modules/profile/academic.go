@@ -30,6 +30,7 @@ var AcademicRoutes = []AcademicRoute{
 	{http.MethodGet, "/academic/conversations/detail"},
 	{http.MethodGet, "/academic/conversations/messages"},
 	{http.MethodPost, "/academic/conversations/decision"},
+	{http.MethodPost, "/academic/conversations/teammate"},
 	{http.MethodPost, "/academic/teams"},
 	{http.MethodGet, "/academic/teams/me"},
 	{http.MethodPost, "/academic/teams/join"},

@@ -35,6 +35,7 @@ export class CourseDeckComponent implements OnDestroy {
   saving = false;
   error = '';
   feedback = '';
+  chatFeedback = false;
   dragX = 0;
   leaving: SwipeDirection | null = null;
   private requestId = 0;
@@ -134,9 +135,10 @@ export class CourseDeckComponent implements OnDestroy {
           this.saving = false;
           this.leaving = null;
           this.dragX = 0;
-          this.feedback = choice === 'like' ? 'Диалог добавлен в чаты' : 'Пропущено';
+          this.chatFeedback = choice === 'like';
+          this.feedback = this.chatFeedback ? 'Диалог добавлен в чаты' : 'Пропущено';
           clearTimeout(this.feedbackTimer);
-          this.feedbackTimer = setTimeout(() => (this.feedback = ''), 1800);
+          if (!this.chatFeedback) this.feedbackTimer = setTimeout(() => (this.feedback = ''), 1800);
           if (!this.candidates.length) this.load();
         },
         error: (error) => {

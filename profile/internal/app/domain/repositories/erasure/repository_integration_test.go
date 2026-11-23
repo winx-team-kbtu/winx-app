@@ -113,7 +113,8 @@ func TestDeleteUserRows_TeamsShrinkAndEmptyTeamsAreRemoved(t *testing.T) {
 	require.NoError(t, db.Raw(`INSERT INTO teams (course_id, name, join_code, created_by) VALUES (?, 'A', 'ERASE1', 501) RETURNING id`, courseID).Scan(&teamA).Error)
 	require.NoError(t, db.Raw(`INSERT INTO teams (course_id, name, join_code, created_by) VALUES (?, 'B', 'ERASE2', 503) RETURNING id`, courseID).Scan(&teamB).Error)
 
-	// Team A: 501 (creator) + 502 + 503... 503 must stay out; use 501 and 502 only.
+	require.NoError(t, db.Exec(`INSERT INTO user_courses (user_id, course_id) VALUES (501, ?), (502, ?), (503, ?) ON CONFLICT DO NOTHING`, courseID, courseID, courseID).Error)
+	// Team A has its creator and one other member.
 	require.NoError(t, db.Exec(`INSERT INTO team_members (team_id, user_id, course_id) VALUES (?, 501, ?), (?, 502, ?)`, teamA, courseID, teamA, courseID).Error)
 	// Team B: only 503, but 503 stays, so B must be untouched.
 	require.NoError(t, db.Exec(`INSERT INTO team_members (team_id, user_id, course_id) VALUES (?, 503, ?)`, teamB, courseID).Error)
@@ -122,7 +123,7 @@ func TestDeleteUserRows_TeamsShrinkAndEmptyTeamsAreRemoved(t *testing.T) {
 
 	require.EqualValues(t, 1, count(t, db, `SELECT count(*) FROM teams WHERE id = ?`, teamA), "team with a remaining member survives")
 	require.EqualValues(t, 1, count(t, db, `SELECT count(*) FROM team_members WHERE team_id = ?`, teamA), "size recalculates to 1")
-	require.Zero(t, count(t, db, `SELECT count(*) FROM teams WHERE id = ? AND created_by IS NOT NULL`, teamA), "creator link is cleared")
+	require.EqualValues(t, 1, count(t, db, `SELECT count(*) FROM teams WHERE id = ? AND created_by = 502`, teamA), "ownership passes to the remaining member")
 	require.EqualValues(t, 1, count(t, db, `SELECT count(*) FROM teams WHERE id = ?`, teamB), "unrelated team untouched")
 
 	// The last member leaves: the team must disappear.

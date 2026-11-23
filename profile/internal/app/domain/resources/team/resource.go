@@ -7,14 +7,16 @@ import (
 )
 
 type Resource struct {
-	ID          int64     `json:"id"`
-	CreatedBy   *int64    `json:"created_by"`
-	CourseID    int64     `json:"course_id"`
-	Name        string    `json:"name"`
-	JoinCode    string    `json:"join_code"`
-	MemberCount int64     `json:"member_count"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          int64           `json:"id"`
+	CreatedBy   *int64          `json:"created_by"`
+	CourseID    int64           `json:"course_id"`
+	Name        string          `json:"name"`
+	JoinCode    string          `json:"join_code"`
+	MemberCount int64           `json:"member_count"`
+	Status      string          `json:"status"`
+	CreatedAt   time.Time       `json:"created_at"`
+	ViewerID    int64           `json:"viewer_id,omitempty"`
+	Roster      *RosterResource `json:"roster,omitempty"`
 }
 
 func NewResource(item models.Team) *Resource {

@@ -38,15 +38,34 @@
   transform: translateX(35px) rotate(2deg);
   opacity: 0;
 }
+.card-media {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 154px;
+  overflow: hidden;
+  background: radial-gradient(circle at 94% 130%, transparent 0 109px, #a83b2826 110px 111px, transparent 112px 149px, #a83b2826 150px 151px, transparent 152px), #f8eee3;
+}
+.card-media.has-photo {
+  height: clamp(220px, 44dvh, 305px);
+}
+.card-media img,
+.match-avatars img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+}
 .card-monogram {
   display: grid;
   place-items: center;
   width: 88px;
   height: 88px;
-  margin: 32px 22px 0;
-  border-radius: 50%;
-  background: var(--cream);
-  color: var(--ink);
+  border-radius: 23px;
+  background: #f3cec6;
+  color: #8c2c22;
   font-size: 36px;
   font-weight: 500;
 }
@@ -95,20 +114,62 @@
   gap: 12px;
   margin-top: 16px;
 }
+.match-cover {
+  padding: 32px 48px 25px;
+  text-align: center;
+  background: radial-gradient(circle at 103% 115%, transparent 0 95px, #a83b2830 96px 97px, transparent 98px 139px, #a83b2830 140px 141px, transparent 142px), #faefe5;
+}
+.match-avatars {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.match-avatars > span {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  overflow: hidden;
+  border-radius: 21px;
+  background: #f3cec6;
+  color: #8c2c22;
+  font-size: 27px;
+  font-weight: 750;
+}
+.match-avatars > span:first-child {
+  background: #efe3cc;
+  color: #5f533d;
+}
+.match-avatars > .match-heart {
+  width: 30px;
+  height: 32px;
+  background: none;
+}
+.match-heading {
+  margin-bottom: 7px;
+  font-size: clamp(23px, 5.6vw, 34px);
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  text-wrap: balance;
+}
+.match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+}
 @media (max-width: 640px) {
-  .card-monogram {
-    display: grid;
-    place-items: center;
-    width: 88px;
-    height: 88px;
-    margin: 32px 22px 0;
-    border-radius: 50%;
-    background: var(--cream);
-    color: var(--ink);
-    font-size: 36px;
-    font-weight: 500;
-  }
   .card-detail {
     padding: 20px;
   }
+  .match-cover { padding-inline: 22px; }
+  .match-actions .btn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .profile-card { transition: none; }
 }

@@ -73,6 +73,9 @@ export class ConversationsComponent implements OnDestroy {
     );
   }
   preview(room: AcademicConversation): string {
+    if (room.invitation_status === 'pending') {
+      return room.inviter_id === room.peer_id ? 'Приглашение в команду' : 'Приглашение отправлено';
+    }
     return (
       room.last_message ||
       (room.status === 'joined'

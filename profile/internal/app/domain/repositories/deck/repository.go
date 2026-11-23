@@ -52,6 +52,7 @@ func (r *repository) ListCandidates(ctx context.Context, userID, courseID, limit
 		        COALESCE(ap.skills, '[]'::jsonb)  AS skills,
 		        COALESCE(ap.preferred_role, '')   AS preferred_role
 		   FROM user_courses uc
+		   JOIN users u ON u.id=uc.user_id AND u.deletion_requested_at IS NULL
 		   LEFT JOIN profiles p            ON p.user_id = uc.user_id
 		   LEFT JOIN academic_profiles ap  ON ap.user_id = uc.user_id
 		  WHERE uc.course_id = ? AND uc.user_id <> ?

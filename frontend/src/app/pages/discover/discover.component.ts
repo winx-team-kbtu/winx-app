@@ -7,7 +7,9 @@ import {
   RecommendationProfile,
 } from '../../core/services/recommendation.service';
 import { MatchService } from '../../core/services/match.service';
+import { ProfileService } from '../../core/services/profile.service';
 import { IconComponent } from '../../shared/icon/icon.component';
+import { SheetComponent } from '../../shared/sheet/sheet.component';
 import { optionName } from '../../shared/text';
 import { SwipeCardDirective, SwipeDirection } from '../../shared/swipe-card/swipe-card.directive';
 
@@ -19,7 +21,7 @@ type SwipeState = 'idle' | 'left' | 'right';
 @Component({
   selector: 'app-discover',
   standalone: true,
-  imports: [CommonModule, DecimalPipe, IconComponent, SwipeCardDirective, RouterLink],
+  imports: [CommonModule, DecimalPipe, IconComponent, SwipeCardDirective, RouterLink, SheetComponent],
   templateUrl: './discover.component.html',
   styleUrl: './discover.component.css',
 })
@@ -31,7 +33,9 @@ export class DiscoverComponent implements OnInit, OnDestroy {
   needsSetup = false;
   private readonly destroyed = new Subject<void>();
   swipeState: SwipeState = 'idle';
-  matchMessage = '';
+  match: { profile: RecommendationProfile; chatID: number } | null = null;
+  myName = '';
+  failedPhotos = new Set<number>();
   detailsOpen = false;
   dragX = 0;
   get dragTransform(): string | null {
@@ -47,10 +51,15 @@ export class DiscoverComponent implements OnInit, OnDestroy {
   constructor(
     private recommendations: RecommendationService,
     private matchService: MatchService,
+    private profile: ProfileService,
   ) {}
 
   ngOnInit(): void {
     this.load();
+    this.profile.getMe().pipe(takeUntil(this.destroyed)).subscribe({
+      next: (result) => (this.myName = result.data?.first_name ?? ''),
+      error: () => {},
+    });
   }
 
   load(): void {
@@ -90,23 +99,31 @@ export class DiscoverComponent implements OnInit, OnDestroy {
     this.saveSwipe('right');
   }
 
+  dismissMatch(): void {
+    this.match = null;
+    this.next();
+  }
+
   private saveSwipe(direction: 'left' | 'right'): void {
     const profile = this.current;
-    if (!profile?.user_id || this.swipeState !== 'idle') return;
+    if (!profile?.user_id || this.swipeState !== 'idle' || this.match) return;
     this.error = '';
-    this.matchMessage = '';
     this.swipeState = direction;
     this.dragX = 0;
     const request =
       direction === 'left'
         ? this.matchService.swipeLeft(profile.user_id)
         : this.matchService.swipeRight(profile.user_id);
-    forkJoin({ response: request, animation: timer(420) })
+    const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 280;
+    forkJoin({ response: request, animation: timer(delay) })
       .pipe(takeUntil(this.destroyed))
       .subscribe({
         next: ({ response }) => {
-          if (direction === 'right' && response.data)
-            this.matchMessage = 'Взаимная симпатия с ' + (profile.name || 'новым знакомым');
+          if (direction === 'right' && response.data) {
+            this.match = { profile, chatID: response.data.chat_id };
+            this.swipeState = 'idle';
+            return;
+          }
           this.next();
         },
         error: (error) => {

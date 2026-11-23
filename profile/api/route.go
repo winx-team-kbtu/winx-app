@@ -90,6 +90,7 @@ func (s *Server) initDomainRoutes() error {
 	conversationRoutes.GET("/detail", conversations.Get)
 	conversationRoutes.GET("/messages", conversations.Messages)
 	conversationRoutes.POST("/decision", conversations.Decide)
+	conversationRoutes.POST("/teammate", conversations.OpenForTeammate)
 	s.initTeamRoutes(teamHandler.NewHandler(teamService.NewService(s.pgdb), binder))
 	authUserRouter.POST("/profile/academic/teams/member", teamHandler.ManageMember(s.pgdb))
 	s.initInternalRoutes(erasureHandler.NewHandler(erasureService.NewService(

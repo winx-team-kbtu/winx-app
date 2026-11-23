@@ -1,30 +1,27 @@
 import { academicError } from '../../core/services/academic.service';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { RouterLink } from '@angular/router';
 import { MatchService, Match } from '../../core/services/match.service';
-import { ChatService } from '../../core/services/chat.service';
 import { IconComponent } from '../../shared/icon/icon.component';
+import { SheetComponent } from '../../shared/sheet/sheet.component';
 
 @Component({
   selector: 'app-matches',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent],
+  imports: [CommonModule, RouterLink, IconComponent, SheetComponent],
   templateUrl: './matches.component.html',
   styleUrl: './matches.component.css',
 })
 export class MatchesComponent implements OnInit {
   matches: Match[] = [];
-  matchToChatId: Record<number, number> = {};
+  removing: Match | null = null;
+  saving = false;
+  removalError = '';
   loading = true;
   error = '';
 
-  constructor(
-    private matchService: MatchService,
-    private chatService: ChatService,
-    private router: Router,
-  ) {}
+  constructor(private matchService: MatchService) {}
 
   ngOnInit(): void {
     this.load();
@@ -33,16 +30,9 @@ export class MatchesComponent implements OnInit {
   load(): void {
     this.error = '';
     this.loading = true;
-    forkJoin({
-      matches: this.matchService.list(),
-      chats: this.chatService.listChats(),
-    }).subscribe({
-      next: ({ matches, chats }) => {
-        this.matches = matches.data ?? [];
-        this.matchToChatId = {};
-        for (const chat of chats.data ?? []) {
-          this.matchToChatId[chat.match_id] = chat.id;
-        }
+    this.matchService.list().subscribe({
+      next: (response) => {
+        this.matches = response.data ?? [];
         this.loading = false;
       },
       error: (error) => {
@@ -52,20 +42,25 @@ export class MatchesComponent implements OnInit {
     });
   }
 
-  getChatId(match: Match): number | null {
-    return this.matchToChatId[match.id] ?? null;
+  confirmRemoval(match: Match): void {
+    this.removalError = '';
+    this.removing = match;
   }
 
-  openChat(match: Match): void {
-    const chatId = this.getChatId(match);
-    if (chatId) this.router.navigate(['/chats', chatId]);
-  }
-
-  unmatch(match: Match): void {
-    if (!confirm(`Убрать совпадение с ${match.name || 'этим человеком'}?`)) return;
+  unmatch(): void {
+    const match = this.removing;
+    if (!match || this.saving) return;
+    this.saving = true;
+    this.removalError = '';
     this.matchService.delete(match.id).subscribe({
       next: () => {
+        this.saving = false;
+        this.removing = null;
         this.matches = this.matches.filter((m) => m.id !== match.id);
+      },
+      error: (error) => {
+        this.saving = false;
+        this.removalError = academicError(error, 'Не удалось убрать совпадение.');
       },
     });
   }

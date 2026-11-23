@@ -4,8 +4,11 @@ package course
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
+
+	"winx-profile/internal/app/domain/repositories/team"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -31,6 +34,34 @@ func openDB(t *testing.T) *gorm.DB {
 	}
 
 	return db
+}
+
+func TestRepository_EnrollmentCannotBeRemovedWhileInTeam(t *testing.T) {
+	db := openDB(t)
+	ctx := context.Background()
+	repo := NewRepository(db)
+	catalogue, err := repo.List(ctx)
+	if err != nil || len(catalogue) < 2 {
+		t.Fatalf("catalogue: %v %v", catalogue, err)
+	}
+	first, second := catalogue[0].ID, catalogue[1].ID
+	if err := repo.ReplaceUserCourses(ctx, 1, []int64{first, second}); err != nil {
+		t.Fatal(err)
+	}
+	created, err := team.NewRepository(db).Create(ctx, 1, first, "Project", "LOCK22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Exec(`DELETE FROM teams WHERE id=?`, created.ID) })
+	if err := repo.ReplaceUserCourses(ctx, 1, nil); !errors.Is(err, ErrTeamCourse) {
+		t.Fatalf("removing a team course: %v", err)
+	}
+	if got, err := repo.ListByUserID(ctx, 1); err != nil || len(got) != 2 {
+		t.Fatalf("failed edit changed another course: %v %v", got, err)
+	}
+	if err := repo.ReplaceUserCourses(ctx, 1, []int64{first}); err != nil {
+		t.Fatalf("removing an unrelated course: %v", err)
+	}
 }
 
 func TestRepository_ReplaceAndListUserCourses(t *testing.T) {

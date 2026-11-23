@@ -1,6 +1,7 @@
 package swipe
 
 import (
+	"errors"
 	"net/http"
 
 	headercontract "winx-match/internal/app/core/contracts/microservices/header-contract"
@@ -38,6 +39,10 @@ func (h *Handler) SwipeLeft(ctx *gin.Context) {
 	}
 
 	if err := h.service.HandleSwipeLeft(ctx.Request.Context(), authUser.ID, payload.SwipedID); err != nil {
+		if errors.Is(err, service.ErrUnavailableUser) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(err.Error()))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		errorhandler.FailOnError(err, "SwipeLeft service error")
 		return
@@ -61,14 +66,18 @@ func (h *Handler) SwipeRight(ctx *gin.Context) {
 		return
 	}
 
-	match, created, err := h.service.HandleSwipeRight(ctx.Request.Context(), authUser.ID, payload.SwipedID)
+	match, _, err := h.service.HandleSwipeRight(ctx.Request.Context(), authUser.ID, payload.SwipedID)
 	if err != nil {
+		if errors.Is(err, service.ErrUnavailableUser) {
+			ctx.JSON(http.StatusNotFound, response.ErrorResponse(err.Error()))
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
 		errorhandler.FailOnError(err, "SwipeRight service error")
 		return
 	}
 
-	if created {
+	if match.ID != 0 {
 		ctx.JSON(http.StatusOK, response.SuccessResponse(matchResource.NewResource(match), response.OK))
 		return
 	}

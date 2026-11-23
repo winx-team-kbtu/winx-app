@@ -4,12 +4,18 @@ import { ApiResponse } from './profile.service';
 
 export interface Match {
   id: number;
+  chat_id?: number;
   matched_user_id: number;
   name: string;
   city?: string;
   country?: string;
   photo_url?: string;
   created_at: string;
+}
+
+export interface SwipeMatch {
+  id: number;
+  chat_id: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -33,7 +39,7 @@ export class MatchService {
   }
 
   swipeRight(swiped_id: number) {
-    return this.http.post<ApiResponse<Match | null>>('/api/v1/swipes/right', {
+    return this.http.post<ApiResponse<SwipeMatch | null>>('/api/v1/swipes/right', {
       swiped_id,
     });
   }

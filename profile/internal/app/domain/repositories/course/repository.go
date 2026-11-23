@@ -2,12 +2,16 @@ package course
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"winx-profile/internal/app/models/models"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/gorm"
 )
+
+var ErrTeamCourse = errors.New("Сначала выйдите из команды по предмету, который хотите убрать.")
 
 type Repository interface {
 	List(ctx context.Context) ([]models.Course, error)
@@ -65,13 +69,22 @@ func (r *repository) ListByUserID(ctx context.Context, userID int64) ([]models.C
 // ReplaceUserCourses atomically replaces the user's selected courses.
 func (r *repository) ReplaceUserCourses(ctx context.Context, userID int64, courseIDs []int64) error {
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(`DELETE FROM user_courses WHERE user_id = ?`, userID).Error; err != nil {
-			return fmt.Errorf("clear user courses: %w", err)
+		// Serialize edits for the same account and leave retained enrollment rows in place.
+		var locked int64
+		if err := tx.Raw(`SELECT id FROM users WHERE id=? FOR NO KEY UPDATE`, userID).Scan(&locked).Error; err != nil {
+			return err
+		}
+		remove := tx.Table("user_courses").Where("user_id = ?", userID)
+		if len(courseIDs) > 0 {
+			remove = remove.Where("course_id NOT IN ?", courseIDs)
+		}
+		if err := remove.Delete(&models.Course{}).Error; err != nil {
+			return fmt.Errorf("remove unselected courses: %w", err)
 		}
 
 		for _, courseID := range courseIDs {
 			if err := tx.Exec(
-				`INSERT INTO user_courses (user_id, course_id) VALUES (?, ?)`, userID, courseID,
+				`INSERT INTO user_courses (user_id, course_id) VALUES (?, ?) ON CONFLICT DO NOTHING`, userID, courseID,
 			).Error; err != nil {
 				return fmt.Errorf("insert user course: %w", err)
 			}
@@ -80,6 +93,10 @@ func (r *repository) ReplaceUserCourses(ctx context.Context, userID int64, cours
 		return nil
 	})
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.ConstraintName == "team_members_enrollment_fkey" {
+			return ErrTeamCourse
+		}
 		return fmt.Errorf("replace user courses: %w", err)
 	}
 

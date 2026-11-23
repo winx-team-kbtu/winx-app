@@ -15,22 +15,23 @@ API. Participants can read their history; outsiders receive 404. Social chat lis
 exclude academic rooms. The frontend normalizes the server's nested message
 envelope, waits for a server acknowledgment and merges history by message ID.
 
-The chat header offers:
+Use **Пригласить в команду** to invite the peer to your current team. If you
+have no team for the course, enter a name to create one and send the invitation.
+Incoming invitations appear in the chat list and in the conversation. Only the
+recipient can accept or reject an invitation. Accepting adds the recipient to
+the roster. Rejecting leaves the conversation open.
 
-- Add to team: enroll the peer in the acting user's existing team, or create a
-  named team containing both participants if the acting user has no team.
-- Decline: hide the conversation from both active lists and block future messages;
-  both participants retain access to the existing history.
+Use **Написать** on a teammate's profile to open your conversation for the course.
+Leaving a team preserves the conversation. To remove a course from your profile,
+leave its team first.
 
-Adding requires current course enrollment, no conflicting peer membership and
-fewer than five members. Row locks serialize adds and existing join-by-code
-operations. Joining twice is idempotent. Rejection cannot remove existing team
-membership. Closing and sending also lock the same chat row so closure is enforced
-on the server, including for raw WebSocket clients.
+Acceptance checks current course enrollment, membership and available space.
+The team row lock serializes accepts and joining by code to enforce the five-person
+limit. **Завершить общение** hides the chat from both active lists and closes it
+to new messages. Participants can still read the history.
 
-The new SQL migration belongs to the combined, timestamp-ordered migration set
-(`scripts/start-local.ps1` assembles that set). It changes the shared chats table
-after the original chat and course/team migrations.
+The invitation table is installed by the combined, timestamp-ordered migration
+set that `scripts/start-local.ps1` assembles.
 
 Integration tests use `WINX_TEST_DSN` and explicitly require a database named
 `winx_conv_qa_*`. Run with `go test -tags integration` in the conversation

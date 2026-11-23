@@ -19,6 +19,7 @@ type ListDTO struct {
 // user's basic profile info.
 type MatchRow struct {
 	ID            int64
+	ChatID        int64
 	UserOneID     int64
 	UserTwoID     int64
 	MatchedUserID int64

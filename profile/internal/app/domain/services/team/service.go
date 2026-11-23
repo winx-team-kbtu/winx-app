@@ -105,8 +105,8 @@ func generateCode() (string, error) {
 }
 
 // Join enrols the user in the team that owns the code. The user must have
-// selected the team's course and must not already be in a team for it. Codes
-// are matched case-insensitively and malformed ones never reach the database.
+// selected the team's course. Reusing the current team's code returns that team.
+// Codes are matched case-insensitively, including previously issued codes.
 func (s *service) Join(ctx context.Context, userID int64, joinCode string) (models.Team, error) {
 	code := strings.ToUpper(strings.TrimSpace(joinCode))
 	if !validCode(code) {
@@ -122,7 +122,7 @@ func validCode(code string) bool {
 	}
 
 	for _, r := range code {
-		if !strings.ContainsRune(codeAlphabet, r) {
+		if !(r >= 'A' && r <= 'Z' || r >= '0' && r <= '9') {
 			return false
 		}
 	}

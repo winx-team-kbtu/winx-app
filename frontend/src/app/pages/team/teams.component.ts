@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { Router, RouterLink } from '@angular/router';
 import {
   AcademicService,
   Candidate,
@@ -14,14 +15,14 @@ import {
 import { CoursePickerComponent } from '../../shared/course-picker/course-picker.component';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { SheetComponent } from '../../shared/sheet/sheet.component';
-import { ProfileService } from '../../core/services/profile.service';
+import { courseName } from '../../shared/text';
 
 @Component({
   selector: 'app-teams',
   standalone: true,
-  imports: [CommonModule, FormsModule, CoursePickerComponent, IconComponent, SheetComponent],
+  imports: [CommonModule, FormsModule, RouterLink, CoursePickerComponent, IconComponent, SheetComponent],
   templateUrl: './teams.component.html',
-  styleUrl: './team.css',
+  styleUrls: ['./team.css', './teams.component.css'],
 })
 export class TeamsComponent {
   @ViewChild(CoursePickerComponent) picker!: CoursePickerComponent;
@@ -29,7 +30,8 @@ export class TeamsComponent {
   team: Team | null = null;
   roster: Roster | null = null;
   member: Candidate | null = null;
-  panel: 'create' | 'join' | 'code' | null = null;
+  panel: 'create' | 'join' | 'code' | 'remove' | null = null;
+  removalID = 0;
   name = '';
   joinCode = '';
   loading = false;
@@ -38,34 +40,46 @@ export class TeamsComponent {
   copyMessage = '';
   loadFailed = false;
   myId = 0;
+  courseName = courseName;
   private requestId = 0;
   constructor(
     private api: AcademicService,
-    profiles: ProfileService,
-  ) {
-    profiles
-      .getMe()
-      .subscribe({ next: (r) => (this.myId = r.data?.user_id || 0), error: () => {} });
+    private router: Router,
+  ) {}
+  openMember(person: Candidate): void {
+    this.error = '';
+    this.member = person;
   }
-  async remove(memberId: number): Promise<void> {
-    if (!this.course || this.busy) return;
-    const self = memberId === this.myId;
-    if (
-      !confirm(
-        self
-          ? 'Выйти из команды? Права создателя при необходимости перейдут следующему участнику.'
-          : 'Удалить участника из команды? Его переписки с командой будут закрыты.',
-      )
-    )
-      return;
+  confirmRemoval(memberId: number): void {
+    if (!memberId || this.busy) return;
+    this.removalID = memberId;
+    this.error = '';
+    this.panel = 'remove';
+  }
+  async remove(): Promise<void> {
+    if (!this.course || !this.team || !this.removalID || this.busy) return;
     this.busy = true;
     this.error = '';
     try {
-      await firstValueFrom(this.api.removeMember(this.course.id, memberId));
+      await firstValueFrom(this.api.removeMember(this.course.id, this.removalID, this.team.id));
+      this.panel = null;
       this.member = null;
       await this.load();
     } catch (error) {
       this.error = academicError(error);
+    } finally {
+      this.busy = false;
+    }
+  }
+  async openChat(): Promise<void> {
+    if (!this.course || !this.member || this.busy) return;
+    this.busy = true;
+    this.error = '';
+    try {
+      const result = await firstValueFrom(this.api.openTeammateChat(this.course.id, this.member.user_id));
+      await this.router.navigate(['/team/chats', result.data.id]);
+    } catch (err) {
+      this.error = academicError(err);
     } finally {
       this.busy = false;
     }
@@ -85,8 +99,8 @@ export class TeamsComponent {
   }
   close(): void {
     if (!this.busy) {
+      if (this.panel !== 'remove') this.member = null;
       this.panel = null;
-      this.member = null;
       this.error = '';
     }
   }
@@ -103,11 +117,11 @@ export class TeamsComponent {
     const courseId = this.course.id;
     this.loading = true;
     try {
-      const result = await firstValueFrom(this.api.myTeam(courseId));
+      const result = await firstValueFrom(this.api.teamPage(courseId));
       if (request !== this.requestId) return;
       this.team = result.data;
-      const roster = await firstValueFrom(this.api.roster(courseId));
-      if (request === this.requestId) this.roster = roster.data;
+      this.roster = result.data.roster;
+      this.myId = result.data.viewer_id;
     } catch (err) {
       if (request !== this.requestId) return;
       if (!(err instanceof HttpErrorResponse && err.status === 404 && !this.team)) {
@@ -165,7 +179,7 @@ export class TeamsComponent {
         .split(/\s+/)
         .slice(0, 2)
         .map((s) => s[0])
-        .join('') || '?'
+      .join('').toUpperCase() || '?'
     );
   }
   statusLabel(status: string): string {

@@ -101,7 +101,7 @@ export class AcademicProfileComponent implements OnInit {
     return (
       this.courses
         .filter((c) => this.selectedIds.includes(c.id))
-        .map((c) => courseName(c.code))
+        .map((c) => courseName(c.code, c.title))
         .join(', ') || 'Выбрать'
     );
   }

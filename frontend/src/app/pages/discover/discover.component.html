@@ -5,9 +5,6 @@
     <p>В профиле укажите дату рождения, пол и кого хотите встретить.</p>
     <a routerLink="/profile" class="btn btn-primary mt-16">Заполнить профиль</a>
   </section>
-  <p class="quiet-toast" *ngIf="matchMessage" role="status">
-    {{ matchMessage }}
-  </p>
   <div *ngIf="error" class="error-msg" role="alert">
     {{ error }}<button *ngIf="!hasMore" class="btn btn-ghost" (click)="load()">Повторить</button>
   </div>
@@ -16,6 +13,7 @@
   <section *ngIf="!loading && !hasMore && !error && !needsSetup" class="empty-state">
     <h3>На сегодня все</h3>
     <p>Загляните позже — появятся новые люди.</p>
+    <button type="button" class="btn btn-outline mt-16" (click)="load()">Обновить</button>
   </section>
   <div *ngIf="!loading && hasMore" class="card-area">
     <ng-container *ngIf="current as prof">
@@ -33,8 +31,11 @@
         [class.swipe-left]="swipeState === 'left'"
         [class.swipe-right]="swipeState === 'right'"
       >
-        <div class="card-monogram" aria-hidden="true">
-          {{ prof.name?.charAt(0) || '?' }}
+        <div class="card-media" [class.has-photo]="prof.photo_url && !failedPhotos.has(prof.user_id)">
+          <span class="card-monogram" aria-hidden="true">{{ prof.name?.charAt(0) || '?' }}</span>
+          <img *ngIf="prof.photo_url && !failedPhotos.has(prof.user_id)"
+            [src]="prof.photo_url" [alt]="prof.name ? 'Фото профиля: ' + prof.name : 'Фото профиля'"
+            width="440" height="340" draggable="false" (error)="failedPhotos.add(prof.user_id)" />
         </div>
         <div class="card-detail">
           <h2>
@@ -85,4 +86,23 @@
     </div>
     <p class="swipe-hint">Смахните карточку влево или вправо</p>
   </div>
+  <app-sheet *ngIf="match as result" title="Взаимная симпатия" [cover]="true" (closed)="dismissMatch()">
+    <div sheet-cover class="match-cover">
+      <div class="match-avatars" aria-hidden="true">
+        <span>{{ myName.charAt(0).toUpperCase() || 'Я' }}</span>
+        <span class="match-heart"><app-icon name="heart" [size]="20" /></span>
+        <span>{{ result.profile.name?.charAt(0) || '?' }}
+          <img *ngIf="result.profile.photo_url && !failedPhotos.has(result.profile.user_id)" [src]="result.profile.photo_url"
+            alt="" width="72" height="72" (error)="failedPhotos.add(result.profile.user_id)" />
+        </span>
+      </div>
+      <p class="match-heading" aria-hidden="true">Взаимная симпатия</p>
+      <p *ngIf="result.profile.name as name">Вы и {{ name }} поставили друг другу лайк.</p>
+    </div>
+    <div class="match-actions">
+      <a class="btn btn-primary" [routerLink]="result.chatID ? ['/chats', result.chatID] : ['/matches']"
+        [state]="{ peerName: result.profile.name }"><app-icon name="chat" [size]="18" />Написать</a>
+      <button class="btn btn-outline" type="button" (click)="dismissMatch()">Продолжить поиск</button>
+    </div>
+  </app-sheet>
 </main>

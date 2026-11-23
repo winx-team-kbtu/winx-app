@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AcademicService, Course, academicError } from '../../core/services/academic.service';
 import { courseName } from '../text';
 
@@ -25,7 +25,7 @@ import { courseName } from '../text';
           [disabled]="disabled"
         >
           <option *ngFor="let course of courses" [ngValue]="course.id">
-            {{ label(course.code) }}
+            {{ label(course.code, course.title) }}
           </option>
         </select></label
       >
@@ -80,6 +80,7 @@ export class CoursePickerComponent implements OnInit {
   constructor(
     private api: AcademicService,
     private route: ActivatedRoute,
+    private router: Router,
   ) {}
   ngOnInit(): void {
     this.load();
@@ -109,7 +110,18 @@ export class CoursePickerComponent implements OnInit {
   selectId(id: number): void {
     this.selectedId = id;
     const course = this.courses.find((c) => c.id === id) ?? null;
-    if (course) localStorage.setItem('winx_team_course', String(id));
+    if (course) {
+      localStorage.setItem('winx_team_course', String(id));
+      if (this.route.snapshot.queryParamMap.get('course') !== String(id)) {
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { course: id },
+          queryParamsHandling: 'merge',
+          replaceUrl: true,
+          preserveFragment: true,
+        });
+      }
+    }
     this.courseChange.emit(course);
   }
 }

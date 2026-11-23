@@ -51,6 +51,7 @@ func (s *service) List(ctx context.Context, input matchServicedto.ListDTO) ([]ma
 	for _, r := range rows {
 		result = append(result, matchServicedto.MatchWithProfile{
 			ID:            r.ID,
+			ChatID:        r.ChatID,
 			MatchedUserID: r.MatchedUserID,
 			Name:          r.Name,
 			City:          r.City,

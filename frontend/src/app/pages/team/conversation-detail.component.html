@@ -12,18 +12,73 @@
       <p *ngIf="room">{{ courseName(room.course_code) }}</p>
     </div>
   </header>
-  <div class="decision-actions" *ngIf="room?.status === 'open'">
-    <button
-      class="btn btn-primary"
-      type="button"
-      [disabled]="busy || !room?.can_write"
-      (click)="open('add')"
-    >
-      Добавить в команду</button
-    ><button class="btn btn-outline" type="button" [disabled]="busy" (click)="open('decline')">
-      Отказать
-    </button>
-  </div>
+  <ng-container *ngIf="room as current">
+    <ng-container *ngIf="current.status === 'open'">
+      <ng-container *ngIf="current.invitation_status === 'pending'; else inviteActions">
+        <p class="room-status invitation-status" role="status">
+          {{
+            current.inviter_id === current.peer_id
+              ? 'Вас приглашают в команду'
+              : 'Приглашение отправлено в команду'
+          }}
+          «{{ current.invitation_team_name }}»
+        </p>
+        <div
+          class="decision-actions"
+          *ngIf="current.inviter_id === current.peer_id; else closeActions"
+        >
+          <button
+            class="btn btn-primary"
+            type="button"
+            [disabled]="busy || !current.can_write"
+            (click)="answerInvitation('accept')"
+          >
+            Принять
+          </button>
+          <button
+            class="btn btn-outline"
+            type="button"
+            [disabled]="busy"
+            (click)="answerInvitation('reject')"
+          >
+            Отклонить
+          </button>
+        </div>
+        <ng-template #closeActions>
+          <div class="decision-actions single-action">
+            <button class="btn btn-outline" type="button" [disabled]="busy" (click)="open('decline')">
+              Завершить общение
+            </button>
+          </div>
+        </ng-template>
+      </ng-container>
+      <ng-template #inviteActions>
+        <p
+          class="room-status invitation-status"
+          *ngIf="current.invitation_status === 'declined'"
+          role="status"
+        >
+          Приглашение в команду «{{ current.invitation_team_name }}» отклонено
+        </p>
+        <div class="decision-actions">
+          <button
+            class="btn btn-primary"
+            type="button"
+            [disabled]="busy || !current.can_write"
+            (click)="open('invite')"
+          >
+            Пригласить в команду
+          </button>
+          <button class="btn btn-outline" type="button" [disabled]="busy" (click)="open('decline')">
+            Завершить общение
+          </button>
+        </div>
+      </ng-template>
+    </ng-container>
+  </ng-container>
+  <p *ngIf="decisionError && !panel" class="error-msg chat-error" role="alert">
+    {{ decisionError }}
+  </p>
   <div class="room-status" *ngIf="room?.status === 'joined'">
     <app-icon name="check" [size]="16" />Вы в одной команде<a
       routerLink="/team/teams"
@@ -49,7 +104,8 @@
     >
       {{ loadingOlder ? 'Загрузка…' : 'Ранние сообщения' }}
     </button>
-    <p class="chat-empty" *ngIf="!messages.length">Обсудите проект и познакомьтесь.</p>
+    <app-chat-starters *ngIf="!messages.length && room.can_write && !newMessage.trim()"
+      [starters]="starters" (picked)="draftStarter($event)" />
     <div
       class="message"
       *ngFor="let msg of messages"
@@ -64,6 +120,7 @@
   <p *ngIf="error" class="error-msg chat-error" role="alert">{{ error }}</p>
   <form class="chat-input-area" *ngIf="room" (ngSubmit)="send()">
     <input
+      #composer
       type="text"
       class="chat-input"
       aria-label="Сообщение"
@@ -84,15 +141,15 @@
   </form>
   <app-sheet
     *ngIf="panel"
-    [title]="panel === 'add' ? 'Добавить в команду' : 'Завершить общение?'"
+    [title]="panel === 'invite' ? 'Пригласить в команду' : 'Завершить общение?'"
     [locked]="busy"
     (closed)="close()"
   >
     <form class="sheet-form" (ngSubmit)="decide()" #form="ngForm">
       <div class="sheet-body">
-        <ng-container *ngIf="panel === 'add' && room">
+        <ng-container *ngIf="panel === 'invite' && room">
           <p *ngIf="room.my_team_id" class="decision-copy">
-            Добавить {{ room.peer_name }} в «{{ room.my_team_name }}»?
+            Пригласить {{ room.peer_name }} в «{{ room.my_team_name }}»?
           </p>
           <p *ngIf="room.my_team_id" class="field-note">{{ room.my_team_size }} из 5 участников</p>
           <div class="form-group" *ngIf="!room.my_team_id">
@@ -101,13 +158,15 @@
               id="new-team-name"
               class="form-control"
               name="teamName"
+              autocomplete="off"
               [(ngModel)]="teamName"
               required
               minlength="2"
               maxlength="50"
-              placeholder="Как назовём команду?"
+              placeholder="Например, Алгоритмы…"
             />
           </div>
+          <p class="field-note">Собеседник вступит в команду после подтверждения.</p>
           <p *ngIf="otherTeam" class="error-msg mt-16">Собеседник уже состоит в другой команде.</p>
           <p *ngIf="room.my_team_size >= 5" class="error-msg mt-16">В команде уже 5 участников.</p>
         </ng-container>
@@ -125,7 +184,7 @@
           [disabled]="
             busy ||
             !form.valid ||
-            (panel === 'add' &&
+            (panel === 'invite' &&
               (otherTeam ||
                 (room?.my_team_size || 0) >= 5 ||
                 (!room?.my_team_id && teamName.trim().length < 2)))
@@ -135,10 +194,10 @@
             busy
               ? 'Сохраняем…'
               : panel === 'decline'
-                ? 'Отказать'
+                ? 'Завершить общение'
                 : room?.my_team_id
-                  ? 'Добавить'
-                  : 'Создать и добавить'
+                  ? 'Отправить приглашение'
+                  : 'Создать и пригласить'
           }}
         </button>
       </div>

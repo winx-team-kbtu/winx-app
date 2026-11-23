@@ -24,6 +24,7 @@
       class="communication-row chat-row"
       *ngFor="let chat of chats"
       [routerLink]="['/chats', chat.id]"
+      [state]="{ peerName: getChatName(chat) }"
       ><span class="avatar" aria-hidden="true">{{ getInitial(chat) }}</span
       ><span class="row-details"
         ><strong>{{ getChatName(chat) }}</strong></span

@@ -6,7 +6,8 @@ type StoreDTO struct {
 }
 
 type MineDTO struct {
-	CourseID int64 `form:"course_id" validate:"required,gt=0"`
+	CourseID      int64 `form:"course_id" validate:"required,gt=0"`
+	IncludeRoster bool  `form:"include_roster"`
 }
 
 type JoinDTO struct {

@@ -45,7 +45,8 @@ func (r *repository) Upsert(ctx context.Context, userID, candidateID, courseID i
 		res := tx.Exec(
 			`INSERT INTO course_choices (user_id, candidate_id, course_id, choice)
 		 SELECT ?, ?, ?, ?
-		  WHERE EXISTS (SELECT 1 FROM user_courses WHERE user_id = ? AND course_id = ?)
+		  WHERE EXISTS (SELECT 1 FROM user_courses uc JOIN users u ON u.id=uc.user_id
+		                 WHERE uc.user_id = ? AND uc.course_id = ? AND u.deletion_requested_at IS NULL)
 		 ON CONFLICT (user_id, candidate_id, course_id) DO UPDATE
 		   SET choice = EXCLUDED.choice, updated_at = NOW()`,
 			userID, candidateID, courseID, choice, candidateID, courseID,
@@ -86,6 +87,7 @@ func (r *repository) ListShortlist(ctx context.Context, userID, courseID, limit,
 		        COALESCE(ap.skills, '[]'::jsonb)  AS skills,
 		        COALESCE(ap.preferred_role, '')   AS preferred_role
 		   FROM course_choices cc
+		   JOIN users u ON u.id=cc.candidate_id AND u.deletion_requested_at IS NULL
 		   LEFT JOIN profiles p            ON p.user_id = cc.candidate_id
 		   LEFT JOIN academic_profiles ap  ON ap.user_id = cc.candidate_id
 		  WHERE cc.user_id = ? AND cc.course_id = ? AND cc.choice = 'like'

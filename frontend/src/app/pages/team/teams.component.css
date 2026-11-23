@@ -1,0 +1,192 @@
+.team-summary-header h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.team-roster-heading {
+  color: var(--muted);
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.member-cover {
+  --profile-accent: #8c2c22;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  overflow: hidden;
+  padding: 37px 60px 34px 30px;
+  background: #f9f1e6;
+}
+
+.member-cover::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: radial-gradient(
+    circle at 103% 115%,
+    transparent 0 82px,
+    #b8544530 83px 84px,
+    transparent 85px 122px,
+    #b8544530 123px 124px,
+    transparent 125px 164px,
+    #b8544530 165px 166px,
+    transparent 167px 207px,
+    #b8544530 208px 209px,
+    transparent 210px
+  );
+  pointer-events: none;
+}
+
+.member-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 88px;
+  height: 88px;
+  border-radius: 23px;
+  background: #f3cec6;
+  color: var(--profile-accent);
+  font-size: 33px;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+}
+
+.member-identity {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.member-name {
+  margin-bottom: 3px;
+  font-size: clamp(25px, 5.4vw, 36px);
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1.12;
+}
+
+.member-role {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 550;
+}
+
+.member-membership {
+  display: inline-block;
+  margin-top: 9px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #f5ddd5;
+  color: var(--profile-accent);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.member-content {
+  padding: 0 30px 27px;
+}
+
+.member-section {
+  padding: 20px 0;
+}
+
+.member-section + .member-section {
+  border-top: 1px solid var(--line);
+}
+
+.member-section h3 {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.member-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  list-style: none;
+}
+
+.member-skills li {
+  max-width: 100%;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #f7e7e0;
+  color: #7e3028;
+  font-size: 12px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.member-course {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.member-course app-icon {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 15px;
+  margin-top: 6px;
+}
+
+.member-actions .btn {
+  min-height: 44px;
+  background: #8c2c22;
+  color: #fff;
+}
+
+.member-actions .btn:hover:not(:disabled) {
+  background: #712118;
+}
+
+.member-remove {
+  min-height: 44px;
+  padding: 8px;
+  border: 0;
+  background: none;
+  color: #8c2c22;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.member-remove:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+@media (max-width: 520px) {
+  .member-cover {
+    gap: 15px;
+    padding: 29px 53px 23px 20px;
+  }
+
+  .member-avatar {
+    flex-basis: 63px;
+    height: 63px;
+    border-radius: 17px;
+    font-size: 26px;
+  }
+
+  .member-role {
+    font-size: 13px;
+  }
+
+  .member-content {
+    padding: 0 20px 20px;
+  }
+
+  .member-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+}

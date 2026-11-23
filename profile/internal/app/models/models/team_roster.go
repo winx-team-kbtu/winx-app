@@ -1,7 +1,8 @@
 package models
 
-// TeamRoster is what a team member may see about their own team: team name,
-// course and members' academic fields only. No contacts, photos or choices.
+import "time"
+
+// TeamRoster is the team and its members' academic information from one snapshot.
 type TeamRoster struct {
 	TeamID      int64
 	TeamName    string
@@ -9,4 +10,14 @@ type TeamRoster struct {
 	CourseCode  string
 	CourseTitle string
 	Members     []DeckCandidate
+	CreatedBy   *int64
+	JoinCode    string
+	CreatedAt   time.Time
+}
+
+func (r TeamRoster) Team() Team {
+	return Team{
+		ID: r.TeamID, Name: r.TeamName, CourseID: r.CourseID, CreatedBy: r.CreatedBy,
+		JoinCode: r.JoinCode, CreatedAt: r.CreatedAt, MemberCount: int64(len(r.Members)),
+	}
 }

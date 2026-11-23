@@ -73,8 +73,11 @@ func (r *repository) DeleteUserRows(ctx context.Context, userID int64) error {
 			}
 		}
 
-		if err := tx.Exec(`UPDATE teams SET created_by = NULL WHERE created_by = ?`, userID).Error; err != nil {
-			return fmt.Errorf("detach team creator: %w", err)
+		if err := tx.Exec(`UPDATE teams t SET created_by = (
+ SELECT m.user_id FROM team_members m JOIN users u ON u.id=m.user_id AND u.deletion_requested_at IS NULL
+ WHERE m.team_id=t.id ORDER BY m.joined_at,m.user_id LIMIT 1
+) WHERE created_by = ?`, userID).Error; err != nil {
+			return fmt.Errorf("transfer team ownership: %w", err)
 		}
 
 		if err := tx.Exec(

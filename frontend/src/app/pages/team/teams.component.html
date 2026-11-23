@@ -1,7 +1,7 @@
 <main class="team-page">
   <header class="screen-heading"><h1>Команда</h1></header>
   <app-course-picker [disabled]="busy" (courseChange)="selectCourse($event)"></app-course-picker>
-  <div *ngIf="error && !panel" class="error-msg" role="alert">
+  <div *ngIf="error && !panel && !member" class="error-msg" role="alert">
     {{ error }}<button *ngIf="loadFailed" class="btn btn-ghost" (click)="load()">Повторить</button>
   </div>
   <div *ngIf="loading" class="spinner" aria-label="Загрузка команды"></div>
@@ -9,8 +9,8 @@
     <section *ngIf="team" class="team-summary">
       <div class="team-summary-header">
         <h2>{{ team.name }}</h2>
-        <button class="btn btn-outline" (click)="open('code')">
-          <app-icon name="copy" [size]="16" />Пригласить
+        <button type="button" class="btn btn-outline" (click)="open('code')">
+          <app-icon name="copy" [size]="16" />Код команды
         </button>
       </div>
       <p
@@ -21,12 +21,13 @@
         {{ team.member_count }} из 5 · {{ statusLabel(team.status) }}
       </p>
       <div *ngIf="roster" class="people-list">
+        <h3 class="team-roster-heading">Участники</h3>
         <article *ngFor="let person of roster.members" class="candidate-row">
           <button
             type="button"
             class="person-open"
-            (click)="member = person"
-            [attr.aria-label]="'Открыть профиль: ' + person.name"
+            (click)="openMember(person)"
+            [attr.aria-label]="'Открыть профиль: ' + (person.name || 'Студент')"
           >
             <span class="initials" aria-hidden="true">{{ initials(person.name) }}</span><span
               class="person-info"
@@ -41,14 +42,7 @@
           </button>
         </article>
       </div>
-      <p class="field-note mt-16">
-        Нажмите на участника, чтобы посмотреть профиль{{
-          team.created_by === myId
-            ? ' или удалить его из команды.'
-            : '. Удалять участников может создатель команды.'
-        }}
-      </p>
-      <button type="button" class="logout-link" [disabled]="busy" (click)="remove(myId)">
+      <button type="button" class="logout-link" [disabled]="busy || !myId" (click)="confirmRemoval(myId)">
         Выйти из команды
       </button>
     </section>
@@ -78,7 +72,8 @@
             required
             minlength="2"
             maxlength="50"
-            placeholder="Придумайте название"
+            placeholder="Например, Алгоритмы…"
+            autocomplete="off"
             [disabled]="busy"
           />
         </div>
@@ -97,6 +92,8 @@
             minlength="6"
             maxlength="6"
             placeholder="ABC234"
+            spellcheck="false"
+            autocapitalize="characters"
             autocomplete="off"
             [disabled]="busy"
           />
@@ -116,7 +113,7 @@
       </div>
     </form>
   </app-sheet>
-  <app-sheet *ngIf="panel === 'code' && team" title="Пригласить в команду" (closed)="close()">
+  <app-sheet *ngIf="panel === 'code' && team" title="Код команды" (closed)="close()">
     <div class="sheet-body">
       <p class="muted">
         Отправьте код однокурснику. Он открывает «Команда» → «Вступить по коду» и вводит код.
@@ -131,21 +128,74 @@
       </button>
     </div>
   </app-sheet>
-  <app-sheet *ngIf="member" [title]="member.name || 'Студент'" (closed)="member = null">
-    <div class="sheet-body">
-      <p *ngIf="member.preferred_role" class="detail-role">{{ member.preferred_role }}</p>
-      <div class="skill-list" *ngIf="member.skills.length">
-        <span class="skill" *ngFor="let skill of member.skills">{{ skill }}</span>
+  <ng-container *ngIf="member as person">
+    <app-sheet
+      *ngIf="!panel && team && course"
+      [title]="person.name || 'Студент'"
+      [cover]="true"
+      [locked]="busy"
+      (closed)="close()"
+    >
+      <div sheet-cover class="member-cover">
+        <span class="member-avatar" aria-hidden="true">{{ initials(person.name) }}</span>
+        <div class="member-identity">
+          <p class="member-name" aria-hidden="true">{{ person.name || 'Студент' }}</p>
+          <p class="member-role">{{ person.preferred_role || 'Роль не указана' }}</p>
+          <p class="member-membership" *ngIf="person.user_id === team.created_by || person.user_id === myId">
+            {{ person.user_id === team.created_by ? 'Создатель команды' : 'Вы' }}
+          </p>
+        </div>
       </div>
-      <p *ngIf="!member.preferred_role && !member.skills.length" class="muted">
-        Профиль пока не заполнен.
+      <div class="member-content">
+        <section class="member-section">
+          <h3>Навыки</h3>
+          <ul *ngIf="person.skills.length; else noSkills" class="member-skills" role="list">
+            <li *ngFor="let skill of person.skills">{{ skill }}</li>
+          </ul>
+          <ng-template #noSkills><p class="muted">Навыки пока не указаны.</p></ng-template>
+        </section>
+        <section class="member-section">
+          <h3>Команда</h3>
+          <p class="member-course"><app-icon name="book" [size]="17" />
+            <span>{{ team.name }} · {{ courseName(course.code, course.title) }}</span>
+          </p>
+        </section>
+        <p class="error-msg" role="alert" *ngIf="error">{{ error }}</p>
+        <div class="member-actions">
+          <a *ngIf="person.user_id === myId; else contactMember" class="btn btn-primary" routerLink="/team/profile">
+            Редактировать профиль<app-icon name="arrow" [size]="17" />
+          </a>
+          <ng-template #contactMember>
+            <button class="btn btn-primary" type="button" [disabled]="busy" (click)="openChat()">
+              <app-icon name="chat" [size]="17" />{{ busy ? 'Открываем…' : 'Написать' }}
+            </button>
+            <button *ngIf="team.created_by === myId" class="member-remove" type="button" [disabled]="busy" (click)="confirmRemoval(person.user_id)">
+              Удалить из команды
+            </button>
+          </ng-template>
+        </div>
+      </div>
+    </app-sheet>
+  </ng-container>
+  <app-sheet
+    *ngIf="panel === 'remove'"
+    [title]="removalID === myId ? 'Выйти из команды?' : 'Удалить участника?'"
+    [locked]="busy"
+    (closed)="close()"
+  >
+    <div class="sheet-body">
+      <p *ngIf="removalID === myId && team?.created_by === myId && (team?.member_count || 0) > 1">
+        Управление командой перейдёт следующему участнику.
       </p>
+      <p *ngIf="removalID === myId && team?.member_count === 1">Команда будет удалена.</p>
+      <p>Переписка останется доступной.</p>
+      <p *ngIf="error" class="error-msg mt-16" role="alert">{{ error }}</p>
     </div>
-    <div class="sheet-actions" *ngIf="member.user_id !== myId && team?.created_by === myId">
-      <button class="btn btn-danger" [disabled]="busy" (click)="remove(member.user_id)">
-        Удалить из команды
+    <div class="sheet-actions">
+      <button class="btn btn-outline" type="button" [disabled]="busy" (click)="close()">Отмена</button>
+      <button class="btn btn-danger" type="button" [disabled]="busy" (click)="remove()">
+        {{ busy ? 'Сохраняем…' : removalID === myId ? 'Выйти' : 'Удалить' }}
       </button>
     </div>
-    <p class="error-msg" role="alert" *ngIf="error">{{ error }}</p>
   </app-sheet>
 </main>

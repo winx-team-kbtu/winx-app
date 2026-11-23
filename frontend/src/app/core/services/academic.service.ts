@@ -15,6 +15,8 @@ export interface Candidate extends AcademicProfile {
   user_id: number;
   name: string;
 }
+export type ConversationDecision = 'invite' | 'accept' | 'reject' | 'decline';
+
 export interface AcademicConversation {
   id: number;
   course_id: number;
@@ -36,6 +38,10 @@ export interface AcademicConversation {
   last_message_at: string | null;
   created_at: string;
   can_write: boolean;
+  invitation_id: number | null;
+  inviter_id: number | null;
+  invitation_status: 'pending' | 'accepted' | 'declined' | null;
+  invitation_team_name: string | null;
 }
 export interface Team {
   created_by?: number;
@@ -53,6 +59,10 @@ export interface Roster {
   status: Team['status'];
   course: Course;
   members: Candidate[];
+}
+export interface TeamPage extends Team {
+  viewer_id: number;
+  roster: Roster;
 }
 
 // Academic pages handle their own errors; existing Social flows are unchanged.
@@ -124,6 +134,17 @@ export class AcademicService {
       params: { course_id, limit: 50, offset },
     });
   }
+  openTeammateChat(course_id: number, peer_id: number) {
+    return this.http.post<ApiResponse<{ id: number }>>(`${this.base}/conversations/teammate`, {
+      course_id,
+      peer_id,
+    });
+  }
+  teamPage(course_id: number) {
+    return this.http.get<ApiResponse<TeamPage>>(`${this.base}/teams/me`, {
+      params: { course_id, include_roster: true },
+    });
+  }
   conversation(chat_id: number) {
     return this.http.get<ApiResponse<AcademicConversation>>(`${this.base}/conversations/detail`, {
       params: { chat_id },
@@ -135,10 +156,15 @@ export class AcademicService {
       { params: { chat_id, before_id } },
     );
   }
-  decideConversation(chat_id: number, decision: 'add' | 'decline', team_name = '') {
+  decideConversation(
+    chat_id: number,
+    decision: ConversationDecision,
+    team_name: string,
+    invitation_id: number,
+  ) {
     return this.http.post<ApiResponse<AcademicConversation>>(
       `${this.base}/conversations/decision`,
-      { chat_id, decision, team_name },
+      { chat_id, decision, team_name, invitation_id },
     );
   }
   roster(course_id: number) {
@@ -157,10 +183,11 @@ export class AcademicService {
       join_code,
     });
   }
-  removeMember(course_id: number, member_id: number) {
+  removeMember(course_id: number, member_id: number, team_id: number) {
     return this.http.post(`${this.base}/teams/member`, {
       course_id,
       member_id,
+      team_id,
     });
   }
 }

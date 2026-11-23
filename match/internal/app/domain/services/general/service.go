@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	matchService "winx-match/internal/app/domain/services/match"
 	swipeService "winx-match/internal/app/domain/services/swipe"
 	"winx-match/internal/app/models/models"
@@ -12,10 +13,9 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrNotFound = errors.New("match not found")
+var ErrUnavailableUser = errors.New("Этот профиль больше недоступен.")
 
-// MatchPublisher is notified whenever a new match is created.
-// Implementations should be non-blocking and treat errors as best-effort.
+// MatchPublisher receives new matches after the database transaction commits.
 type MatchPublisher interface {
 	Publish(ctx context.Context, match models.Match) error
 }
@@ -26,103 +26,126 @@ type Service interface {
 }
 
 type service struct {
-	matchService   matchService.Service
-	swipeService   swipeService.Service
+	db             *gorm.DB
 	cache          cache.Cache
 	matchPublisher MatchPublisher
 }
 
 func NewService(db *gorm.DB, c cache.Cache, publisher MatchPublisher) Service {
-	return &service{
-		matchService:   matchService.NewService(db),
-		swipeService:   swipeService.NewService(db),
-		cache:          c,
-		matchPublisher: publisher,
-	}
+	return &service{db: db, cache: c, matchPublisher: publisher}
 }
 
 func (s *service) HandleSwipeRight(ctx context.Context, swiperID, swipedID int64) (models.Match, bool, error) {
-	// Duplicate check — idempotent if already swiped.
-	existing, err := s.swipeService.FindOwn(ctx, swiperID, swipedID)
-	if err != nil {
-		return models.Match{}, false, fmt.Errorf("check existing swipe: %w", err)
-	}
-	if existing != "" {
-		return models.Match{}, false, nil
-	}
-
-	// Check whether the other user already swiped right on us.
-	direction, err := s.swipeService.FindSwipe(ctx, swiperID, swipedID)
-	if err != nil {
-		return models.Match{}, false, fmt.Errorf("handle swipe right: %w", err)
-	}
-
-	if direction != "right" {
-		// No mutual right-swipe yet — record ours, boost the other user's popularity.
-		if _, err := s.swipeService.Create(ctx, swiperID, swipedID, "right"); err != nil {
-			return models.Match{}, false, fmt.Errorf("create swipe: %w", err)
+	match, created, err := s.recordSwipe(ctx, swiperID, swipedID, "right")
+	if err == nil && match.ID != 0 && created && s.matchPublisher != nil {
+		if err := s.matchPublisher.Publish(ctx, match); err != nil {
+			fmt.Printf("warn: publish match event: %v\n", err)
 		}
-		_, _ = s.cache.Increment(ctx, popularityKey(swipedID), 1)
-		_ = s.cache.Delete(ctx, recCacheKey(swiperID))
-		return models.Match{}, false, nil
 	}
-
-	// Mutual right-swipe — clean up the other user's pending swipe then create the match.
-	if err := s.swipeService.Delete(ctx, swipedID, swiperID); err != nil {
-		return models.Match{}, false, fmt.Errorf("delete swipe: %w", err)
-	}
-
-	match, err := s.matchService.Create(ctx, swiperID, swipedID)
-	if err != nil {
-		return models.Match{}, false, fmt.Errorf("create match: %w", err)
-	}
-	_, _ = s.cache.Increment(ctx, popularityKey(swipedID), 2)
-	_ = s.cache.Delete(ctx, recCacheKey(swiperID), recCacheKey(swipedID))
-	if err := s.matchPublisher.Publish(ctx, match); err != nil {
-		fmt.Printf("warn: publish match event: %v\n", err)
-	}
-	return match, true, nil
+	return match, created, err
 }
 
 func (s *service) HandleSwipeLeft(ctx context.Context, swiperID, swipedID int64) error {
-	// Duplicate check — idempotent if already swiped.
-	existing, err := s.swipeService.FindOwn(ctx, swiperID, swipedID)
-	if err != nil {
-		return fmt.Errorf("check existing swipe: %w", err)
-	}
-	if existing != "" {
-		return nil
+	_, _, err := s.recordSwipe(ctx, swiperID, swipedID, "left")
+	return err
+}
+
+func (s *service) recordSwipe(ctx context.Context, swiper, peer int64, direction string) (models.Match, bool, error) {
+	if swiper == peer {
+		return models.Match{}, false, ErrUnavailableUser
 	}
 
-	// Check if the other user has a pending swipe on us (need to clean it up).
-	theirDirection, err := s.swipeService.FindSwipe(ctx, swiperID, swipedID)
-	if err != nil {
-		return fmt.Errorf("handle swipe left: %w", err)
-	}
-
-	// Record our left swipe.
-	if _, err := s.swipeService.Create(ctx, swiperID, swipedID, "left"); err != nil {
-		return fmt.Errorf("create swipe: %w", err)
-	}
-	_, _ = s.cache.Increment(ctx, popularityKey(swipedID), -1)
-	_ = s.cache.Delete(ctx, recCacheKey(swiperID))
-
-	// If they had a pending swipe on us, remove it — no match can happen now.
-	if theirDirection != "" {
-		if err := s.swipeService.Delete(ctx, swipedID, swiperID); err != nil {
-			fmt.Printf("warn: delete pending swipe from %d on %d: %v\n", swipedID, swiperID, err)
+	var match models.Match
+	var created bool
+	var popularity int64
+	first, second := min(swiper, peer), max(swiper, peer)
+	err := s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Both directions take the same pair lock before reading swipes.
+		key := fmt.Sprintf("winx-social:%d:%d", first, second)
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended(?,0))`, key).Error; err != nil {
+			return err
 		}
+		var active []int64
+		if err := tx.Raw(`SELECT id FROM users WHERE id IN (?,?) AND deletion_requested_at IS NULL ORDER BY id FOR SHARE`, first, second).Scan(&active).Error; err != nil {
+			return err
+		}
+		if len(active) != 2 {
+			return ErrUnavailableUser
+		}
+		if err := tx.Raw(`SELECT * FROM matches WHERE (user_one_id=? AND user_two_id=?) OR (user_one_id=? AND user_two_id=?) LIMIT 1 FOR KEY SHARE`,
+			first, second, second, first).Scan(&match).Error; err != nil {
+			return err
+		}
+		if match.ID != 0 {
+			if direction == "right" {
+				return openMatchChat(tx, &match)
+			}
+			return nil
+		}
+
+		swipes := swipeService.NewService(tx)
+		own, err := swipes.FindOwn(ctx, swiper, peer)
+		if err != nil {
+			return err
+		}
+		if own != "" && (own != "right" || direction != "right") {
+			return nil
+		}
+		theirs, err := swipes.FindSwipe(ctx, swiper, peer)
+		if err != nil {
+			return err
+		}
+		if own == "" {
+			if _, err := swipes.Create(ctx, swiper, peer, direction); err != nil {
+				return err
+			}
+			popularity = 1
+		}
+		if direction == "left" {
+			popularity = -1
+			if theirs != "" {
+				return swipes.Delete(ctx, peer, swiper)
+			}
+			return nil
+		}
+		if theirs != "right" {
+			return nil
+		}
+		match, err = matchService.NewService(tx).Create(ctx, first, second)
+		if err != nil {
+			return err
+		}
+		created = true
+		popularity = 2
+		return openMatchChat(tx, &match)
+	})
+	if err != nil {
+		return models.Match{}, false, err
 	}
 
-	return nil
+	if popularity != 0 {
+		_, _ = s.cache.Increment(ctx, popularityKey(peer), popularity)
+		_ = s.cache.Delete(ctx, recCacheKey(swiper))
+	}
+	if created {
+		_ = s.cache.Delete(ctx, recCacheKey(peer))
+	}
+	return match, created, nil
+}
+
+func openMatchChat(tx *gorm.DB, match *models.Match) error {
+	if err := tx.Exec(`INSERT INTO chats(match_id,user_one_id,user_two_id) VALUES(?,?,?)
+ ON CONFLICT(match_id) DO NOTHING`, match.ID, match.UserOneID, match.UserTwoID).Error; err != nil {
+		return err
+	}
+	return tx.Raw("SELECT id FROM chats WHERE match_id=?", match.ID).Scan(&match.ChatID).Error
 }
 
 func popularityKey(userID int64) string {
 	return fmt.Sprintf("pop:%d", userID)
 }
 
-// recCacheKey returns the recommendation cache key for userID.
-// Must match cachePrefix in the recommendation service ("rec:").
+// recCacheKey must match the recommendation service's cache prefix.
 func recCacheKey(userID int64) string {
 	return fmt.Sprintf("rec:%d", userID)
 }

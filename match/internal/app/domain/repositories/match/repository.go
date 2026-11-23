@@ -87,17 +87,20 @@ func (r *repository) ListWithProfiles(ctx context.Context, input repodto.ListDTO
 			r.user_two_id,
 			r.matched_user_id,
 			r.created_at,
+			COALESCE(ch.id,0)      AS chat_id,
 			COALESCE(p.name, '')    AS name,
 			COALESCE(p.city, '')    AS city,
 			COALESCE(p.country, '') AS country,
 			COALESCE(ph.url, '')    AS photo_url
 		FROM ranked r
+		LEFT JOIN chats ch ON ch.match_id = r.id
 		LEFT JOIN profiles p ON p.user_id = r.matched_user_id
 		LEFT JOIN (
 			SELECT DISTINCT ON (user_id) user_id, url
 			FROM profile_photos
 			ORDER BY user_id, id ASC
 		) ph ON ph.user_id = r.matched_user_id
+		ORDER BY r.created_at DESC,r.id DESC
 	`
 
 	var rows []repodto.MatchRow
@@ -116,17 +119,22 @@ func (r *repository) ListWithProfiles(ctx context.Context, input repodto.ListDTO
 }
 
 func (r *repository) DeleteByIDAndUserID(ctx context.Context, id, userID int64) (bool, error) {
-	res := r.db.WithContext(ctx).
-		Where("id = ? AND (user_one_id = ? OR user_two_id = ?)", id, userID, userID).
-		Delete(&models.Match{})
-
-	if res.Error != nil {
-		return false, fmt.Errorf("failed to delete match: %w", res.Error)
-	}
-
-	if res.RowsAffected == 0 {
-		return false, ErrNotFound
-	}
-
-	return true, nil
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var match models.Match
+		res := tx.Raw(`DELETE FROM matches WHERE id=? AND (user_one_id=? OR user_two_id=?)
+ RETURNING id,user_one_id,user_two_id`, id, userID, userID).Scan(&match)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return ErrNotFound
+		}
+		if err := tx.Exec(`INSERT INTO swipes(swiper_id,swiped_id,direction) VALUES(?,?,'left'),(?,?,'left')
+ ON CONFLICT(swiper_id,swiped_id) DO UPDATE SET direction='left'`,
+			match.UserOneID, match.UserTwoID, match.UserTwoID, match.UserOneID).Error; err != nil {
+			return err
+		}
+		return tx.Exec("DELETE FROM chats WHERE match_id=?", id).Error
+	})
+	return err == nil, err
 }

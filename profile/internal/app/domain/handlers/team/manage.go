@@ -19,6 +19,7 @@ func ManageMember(db *gorm.DB) gin.HandlerFunc {
 		var input struct {
 			CourseID int64 `json:"course_id"`
 			MemberID int64 `json:"member_id"`
+			TeamID   int64 `json:"team_id"`
 		}
 		if ctx.ShouldBindJSON(&input) != nil || input.CourseID <= 0 || input.MemberID <= 0 {
 			ctx.JSON(422, response.ErrorResponse("Укажите предмет и участника."))
@@ -31,7 +32,7 @@ func ManageMember(db *gorm.DB) gin.HandlerFunc {
 				ID        int64
 				CreatedBy *int64
 			}
-			r := tx.Raw(`SELECT id,created_by FROM teams WHERE course_id=? AND id IN(SELECT team_id FROM team_members WHERE user_id=?) FOR UPDATE`, input.CourseID, u.ID).Scan(&team)
+			r := tx.Raw(`SELECT id,created_by FROM teams WHERE course_id=? AND (?::bigint=0 OR id=?) AND id IN(SELECT team_id FROM team_members WHERE user_id=?) FOR UPDATE`, input.CourseID, input.TeamID, input.TeamID, u.ID).Scan(&team)
 			if r.Error != nil {
 				return r.Error
 			}
@@ -48,7 +49,10 @@ func ManageMember(db *gorm.DB) gin.HandlerFunc {
 			if removed.RowsAffected == 0 {
 				return missing
 			}
-			if err := tx.Exec("UPDATE chats SET status='declined',closed_by=?,team_id=NULL WHERE team_id=? AND (user_one_id=? OR user_two_id=?)", u.ID, team.ID, input.MemberID, input.MemberID).Error; err != nil {
+			if err := tx.Exec(`WITH reopened AS (
+ UPDATE chats SET status='open',team_id=NULL,updated_at=NOW()
+ WHERE team_id=? AND status='joined' AND (user_one_id=? OR user_two_id=?) RETURNING id
+) DELETE FROM team_invitations WHERE chat_id IN (SELECT id FROM reopened)`, team.ID, input.MemberID, input.MemberID).Error; err != nil {
 				return err
 			}
 			var next int64

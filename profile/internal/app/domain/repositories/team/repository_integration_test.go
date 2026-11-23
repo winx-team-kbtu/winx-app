@@ -207,8 +207,8 @@ func TestRepository_JoinByCode(t *testing.T) {
 		t.Fatalf("joined user must see the team: %+v err=%v", mine, err)
 	}
 
-	if _, err := repo.Join(ctx, 402, "JOIN22"); !errors.Is(err, ErrAlreadyInTeam) {
-		t.Fatalf("duplicate join: expected ErrAlreadyInTeam, got %v", err)
+	if again, err := repo.Join(ctx, 402, "JOIN22"); err != nil || again.ID != team.ID || again.MemberCount != 2 {
+		t.Fatalf("retry should return the current team: %+v %v", again, err)
 	}
 
 	if _, err := repo.Join(ctx, 403, "NOPE22"); !errors.Is(err, ErrNotFound) {

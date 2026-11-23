@@ -80,8 +80,8 @@ and last page. On phones the mode switch is at the top and navigation is at the 
 Team Mode provides an academic profile (courses, skills, preferred role), a course-specific
 candidate deck with touch swipes and buttons, a saved shortlist, and course teams.
 Create a team, share its six-character code, or join an existing team. Teams have
-1–2 members while Forming, 3–4 while Ready, and 5 when Full. A saved candidate is
-not an invitation; agree and share codes through an existing communication channel.
+1–2 members while Forming, 3–4 while Ready, and 5 when Full. To invite a classmate
+from a Team Mode chat, use **Пригласить в команду**. They join when they accept.
 
 To populate academic demo data after running the existing recommendation seeder:
 

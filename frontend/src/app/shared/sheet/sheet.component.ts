@@ -17,13 +17,15 @@ import { IconComponent } from '../icon/icon.component';
   template: `
     <dialog
       #dialog
+      [class.cover-sheet]="cover"
       aria-labelledby="sheet-title"
       (cancel)="dismiss($event)"
       (click)="backdrop($event)"
     >
       <section class="sheet-frame">
         <header>
-          <h2 id="sheet-title">{{ title }}</h2>
+          <h2 id="sheet-title" [class.sr-only]="cover">{{ title }}</h2>
+          <ng-content select="[sheet-cover]" />
           <button
             type="button"
             class="icon-button"
@@ -83,6 +85,35 @@ import { IconComponent } from '../icon/icon.component';
         min-height: 0;
         overflow: hidden;
       }
+      .cover-sheet {
+        width: min(600px, calc(100% - 32px));
+        border-radius: 22px;
+        box-shadow: 0 20px 64px rgba(30, 20, 13, 0.16);
+      }
+      .cover-sheet .sheet-frame {
+        display: block;
+        overflow: auto;
+        overscroll-behavior: contain;
+      }
+      .cover-sheet header {
+        display: block;
+        position: relative;
+        padding: 0;
+      }
+      .cover-sheet header .icon-button {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 40px;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      .cover-sheet header .icon-button:hover {
+        background: var(--soft);
+      }
       @media (max-width: 640px) {
         dialog {
           width: 100%;
@@ -95,6 +126,10 @@ import { IconComponent } from '../icon/icon.component';
           max-height: calc(100dvh - 22px);
           padding-bottom: env(safe-area-inset-bottom);
         }
+        .cover-sheet {
+          width: 100%;
+          border-radius: 22px 22px 0 0;
+        }
         header {
           padding: 16px 20px;
         }
@@ -104,6 +139,7 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class SheetComponent implements AfterViewInit, OnDestroy {
   @Input() title = '';
+  @Input() cover = false;
   @Input() locked = false;
   @Output() closed = new EventEmitter<void>();
   @ViewChild('dialog', { static: true }) dialog!: ElementRef<HTMLDialogElement>;

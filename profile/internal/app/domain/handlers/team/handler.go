@@ -24,28 +24,26 @@ func NewHandler(service service.Service, binder *validation.Binder) *Handler {
 	return &Handler{service: service, binder: binder}
 }
 
-func statusFor(err error) (int, bool) {
+func failureResponse(err error) (int, string) {
 	switch {
 	case errors.Is(err, service.ErrCourseNotSelected):
-		return http.StatusForbidden, true
+		return http.StatusForbidden, "Выберите предмет этой команды в профиле."
 	case errors.Is(err, service.ErrNotFound):
-		return http.StatusNotFound, true
-	case errors.Is(err, service.ErrAlreadyInTeam), errors.Is(err, service.ErrTeamFull):
-		return http.StatusConflict, true
+		return http.StatusNotFound, "Команда не найдена. Проверьте предмет или код."
+	case errors.Is(err, service.ErrAlreadyInTeam):
+		return http.StatusConflict, "Вы уже состоите в другой команде по этому предмету."
+	case errors.Is(err, service.ErrTeamFull):
+		return http.StatusConflict, "В команде уже 5 участников."
 	case errors.Is(err, service.ErrInvalidName):
-		return http.StatusUnprocessableEntity, true
+		return http.StatusUnprocessableEntity, "Введите название команды от 2 до 50 символов."
 	default:
-		return 0, false
+		return http.StatusInternalServerError, response.ServerError
 	}
 }
 
 func fail(ctx *gin.Context, err error, msg string) {
-	if code, ok := statusFor(err); ok {
-		ctx.JSON(code, response.ErrorResponse(err.Error()))
-	} else {
-		ctx.JSON(http.StatusInternalServerError, response.ErrorResponse(response.ServerError))
-	}
-
+	code, message := failureResponse(err)
+	ctx.JSON(code, response.ErrorResponse(message))
 	errorhandler.FailOnError(err, msg)
 }
 
@@ -84,6 +82,19 @@ func (h *Handler) GetMine(ctx *gin.Context) {
 
 	query, ok := validation.BindAndValidate[dto.MineDTO](h.binder, ctx)
 	if !ok {
+		return
+	}
+
+	if query.IncludeRoster {
+		roster, err := h.service.Roster(ctx.Request.Context(), authUser.ID, query.CourseID)
+		if err != nil {
+			fail(ctx, err, "GetMyTeam roster error")
+			return
+		}
+		result := resources.NewResource(roster.Team())
+		result.ViewerID = authUser.ID
+		result.Roster = resources.NewRosterResource(roster)
+		ctx.JSON(http.StatusOK, response.SuccessResponse(result, response.OK))
 		return
 	}
 

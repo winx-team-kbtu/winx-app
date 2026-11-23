@@ -98,7 +98,7 @@ test('local sign-out after deletion clears the session without calling the serve
   const source = fs.readFileSync(
     path.join(__dirname, '../src/app/core/services/auth.service.ts'),
     'utf8',
-  );
+  ).replace(/\r\n/g, '\n');
   const body = source.slice(source.indexOf('endSessionLocally'));
   const method = body.slice(0, body.indexOf('\n  }\n'));
   assert.match(method, /this\.revision\+\+/);

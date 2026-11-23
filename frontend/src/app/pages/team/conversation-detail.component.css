@@ -31,6 +31,9 @@
   font-size: 12px;
   padding: 10px;
 }
+.decision-actions.single-action {
+  grid-template-columns: 1fr;
+}
 .room-status {
   display: flex;
   gap: 8px;
@@ -45,6 +48,12 @@
   margin-left: auto;
   color: var(--ink);
   text-underline-offset: 3px;
+}
+.room-status.invitation-status {
+  display: block;
+  color: var(--ink);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 .chat-empty {
   text-align: center;

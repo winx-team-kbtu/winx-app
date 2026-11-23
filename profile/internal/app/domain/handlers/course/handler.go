@@ -16,6 +16,7 @@ import (
 
 var errStatusMap = map[error]int{
 	service.ErrInvalidCourseIDs: http.StatusUnprocessableEntity,
+	service.ErrTeamCourse:       http.StatusConflict,
 }
 
 type Handler struct {

@@ -8,6 +8,7 @@ type Match struct {
 	UserOneID int64     `json:"user_one_id"`
 	UserTwoID int64     `json:"user_two_id"`
 	CreatedAt time.Time `json:"created_at"`
+	ChatID    int64     `json:"chat_id,omitempty" gorm:"-"`
 }
 
 func (Match) TableName() string { return "matches" }

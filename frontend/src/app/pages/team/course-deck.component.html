@@ -82,7 +82,10 @@
     <p>Попробуйте другой предмет или загляните позже.</p>
     <button type="button" class="btn btn-outline mt-16" (click)="load()">Обновить</button>
   </section>
-  <p *ngIf="feedback" class="quiet-toast" role="status">{{ feedback }}</p>
+  <p *ngIf="feedback" class="quiet-toast" role="status">
+    {{ feedback }}
+    <a *ngIf="chatFeedback && course" routerLink="/team/chats" [queryParams]="{ course: course.id }">К чатам</a>
+  </p>
   <app-sheet *ngIf="selected" [title]="selected.name || 'Студент'" (closed)="selected = null"
     ><div class="sheet-body">
       <p *ngIf="selected.preferred_role" class="detail-role">

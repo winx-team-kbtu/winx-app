@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"winx-profile/internal/app/models/models"
 
@@ -93,6 +94,9 @@ func (r *repository) Create(ctx context.Context, userID, courseID int64, name, j
 
 func mapCreateError(err error) error {
 	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.ConstraintName == "team_members_enrollment_fkey" {
+		return ErrCourseNotSelected
+	}
 	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
 		switch pgErr.ConstraintName {
 		case constraintJoinCode:
@@ -134,7 +138,7 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 		res := tx.Raw(
 			// FOR UPDATE serialises concurrent joins to the same team, so the size
 			// check below and the insert are atomic with respect to other joiners.
-			`SELECT id, course_id, name, join_code, created_at FROM teams WHERE join_code = ? FOR UPDATE`, joinCode,
+			`SELECT id, course_id, name, join_code, created_by, created_at FROM teams WHERE join_code = ? FOR UPDATE`, joinCode,
 		).Scan(&team)
 		if res.Error != nil {
 			return res.Error
@@ -155,10 +159,21 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 		if !eligible {
 			return ErrCourseNotSelected
 		}
+		var existingTeam int64
+		if err := tx.Raw(`SELECT team_id FROM team_members WHERE user_id=? AND course_id=?`, userID, team.CourseID).Scan(&existingTeam).Error; err != nil {
+			return err
+		}
+		if existingTeam != 0 && existingTeam != team.ID {
+			return ErrAlreadyInTeam
+		}
 
 		var size int64
 		if err := tx.Raw(`SELECT COUNT(*) FROM team_members WHERE team_id = ?`, team.ID).Scan(&size).Error; err != nil {
 			return err
+		}
+		if existingTeam == team.ID {
+			team.MemberCount = size
+			return nil
 		}
 
 		if size >= MaxMembers {
@@ -175,7 +190,7 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 		return tx.Raw(`SELECT COUNT(*) FROM team_members WHERE team_id = ?`, team.ID).Scan(&team.MemberCount).Error
 	})
 	if err != nil {
-		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrCourseNotSelected) || errors.Is(err, ErrTeamFull) {
+		if errors.Is(err, ErrNotFound) || errors.Is(err, ErrCourseNotSelected) || errors.Is(err, ErrTeamFull) || errors.Is(err, ErrAlreadyInTeam) {
 			return models.Team{}, err
 		}
 
@@ -186,64 +201,43 @@ func (r *repository) Join(ctx context.Context, userID int64, joinCode string) (m
 }
 
 func (r *repository) Roster(ctx context.Context, userID, courseID int64) (models.TeamRoster, error) {
-	var head struct {
-		TeamID      int64
-		TeamName    string
-		CourseID    int64
-		CourseCode  string
-		CourseTitle string
+	type row struct {
+		TeamID, CourseID, UserID                    int64
+		TeamName, CourseCode, CourseTitle, JoinCode string
+		CreatedBy                                   *int64
+		CreatedAt                                   time.Time
+		Name, PreferredRole                         string
+		Skills                                      []byte
 	}
 
-	res := r.db.WithContext(ctx).Raw(
-		`SELECT t.id AS team_id, t.name AS team_name, c.id AS course_id,
-		        c.code AS course_code, c.title AS course_title
+	var rows []row
+	if err := r.db.WithContext(ctx).Raw(
+		`SELECT t.id AS team_id,t.name AS team_name,t.join_code,t.created_by,t.created_at,
+		        c.id AS course_id,c.code AS course_code,c.title AS course_title,m.user_id,
+		        COALESCE(p.name,'') AS name,COALESCE(ap.skills,'[]'::jsonb) AS skills,
+		        COALESCE(ap.preferred_role,'') AS preferred_role
 		   FROM team_members me
-		   JOIN teams t   ON t.id = me.team_id
-		   JOIN courses c ON c.id = t.course_id
-		  WHERE me.user_id = ? AND t.course_id = ?`,
-		userID, courseID,
-	).Scan(&head)
-	if res.Error != nil {
-		return models.TeamRoster{}, fmt.Errorf("get roster team: %w", res.Error)
+		   JOIN teams t ON t.id=me.team_id
+		   JOIN courses c ON c.id=t.course_id
+		   JOIN team_members m ON m.team_id=t.id
+		   LEFT JOIN users active ON active.id=m.user_id AND active.deletion_requested_at IS NULL
+		   LEFT JOIN profiles p ON p.user_id=active.id
+		   LEFT JOIN academic_profiles ap ON ap.user_id=active.id
+		  WHERE me.user_id=? AND me.course_id=?
+		  ORDER BY m.joined_at,m.user_id`, userID, courseID,
+	).Scan(&rows).Error; err != nil {
+		return models.TeamRoster{}, fmt.Errorf("get roster: %w", err)
 	}
-
-	if res.RowsAffected == 0 {
+	if len(rows) == 0 {
 		return models.TeamRoster{}, ErrNotFound
 	}
-
-	type memberRow struct {
-		UserID        int64
-		Name          string
-		Skills        []byte
-		PreferredRole string
-	}
-
-	var rows []memberRow
-
-	if err := r.db.WithContext(ctx).Raw(
-		`SELECT m.user_id,
-		        COALESCE(p.name, '')              AS name,
-		        COALESCE(ap.skills, '[]'::jsonb)  AS skills,
-		        COALESCE(ap.preferred_role, '')   AS preferred_role
-		   FROM team_members m
-		   LEFT JOIN profiles p            ON p.user_id = m.user_id
-		   LEFT JOIN academic_profiles ap  ON ap.user_id = m.user_id
-		  WHERE m.team_id = ?
-		  ORDER BY m.joined_at, m.user_id`,
-		head.TeamID,
-	).Scan(&rows).Error; err != nil {
-		return models.TeamRoster{}, fmt.Errorf("list roster members: %w", err)
-	}
-
+	head := rows[0]
 	roster := models.TeamRoster{
-		TeamID:      head.TeamID,
-		TeamName:    head.TeamName,
-		CourseID:    head.CourseID,
-		CourseCode:  head.CourseCode,
-		CourseTitle: head.CourseTitle,
-		Members:     make([]models.DeckCandidate, 0, len(rows)),
+		TeamID: head.TeamID, TeamName: head.TeamName, CourseID: head.CourseID,
+		CourseCode: head.CourseCode, CourseTitle: head.CourseTitle,
+		CreatedBy: head.CreatedBy, JoinCode: head.JoinCode, CreatedAt: head.CreatedAt,
+		Members: make([]models.DeckCandidate, 0, len(rows)),
 	}
-
 	for _, rec := range rows {
 		skills := []string{}
 		if len(rec.Skills) > 0 {
@@ -251,14 +245,9 @@ func (r *repository) Roster(ctx context.Context, userID, courseID int64) (models
 				return models.TeamRoster{}, fmt.Errorf("decode member skills: %w", err)
 			}
 		}
-
 		roster.Members = append(roster.Members, models.DeckCandidate{
-			UserID:        rec.UserID,
-			Name:          rec.Name,
-			Skills:        skills,
-			PreferredRole: rec.PreferredRole,
+			UserID: rec.UserID, Name: rec.Name, Skills: skills, PreferredRole: rec.PreferredRole,
 		})
 	}
-
 	return roster, nil
 }

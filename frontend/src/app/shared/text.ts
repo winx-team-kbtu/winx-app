@@ -1,4 +1,4 @@
-export function courseName(code: string): string {
+export function courseName(code: string, title = code): string {
   return (
     (
       {
@@ -11,7 +11,7 @@ export function courseName(code: string): string {
         MLR207: 'Машинное обучение',
         MOB208: 'Мобильная разработка',
       } as Record<string, string>
-    )[code] ?? code
+    )[code] ?? title
   );
 }
 

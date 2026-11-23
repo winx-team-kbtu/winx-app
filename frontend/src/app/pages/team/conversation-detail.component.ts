@@ -13,31 +13,34 @@ import { Subject, forkJoin, interval, takeUntil } from 'rxjs';
 import {
   AcademicService,
   AcademicConversation,
+  ConversationDecision,
   academicError,
 } from '../../core/services/academic.service';
 import { ChatService, Message } from '../../core/services/chat.service';
 import { ProfileService } from '../../core/services/profile.service';
 import { IconComponent } from '../../shared/icon/icon.component';
 import { SheetComponent } from '../../shared/sheet/sheet.component';
+import { ChatStartersComponent } from '../../shared/chat-starters/chat-starters.component';
 import { courseName } from '../../shared/text';
 
 @Component({
   selector: 'app-team-conversation',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, IconComponent, SheetComponent],
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent, SheetComponent, ChatStartersComponent],
   templateUrl: './conversation-detail.component.html',
   styleUrls: ['../chat-detail/chat-detail.component.css', './conversation-detail.component.css'],
 })
 export class ConversationDetailComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messagesEnd') messagesEnd?: ElementRef<HTMLElement>;
   @ViewChild('messageList') messageList?: ElementRef<HTMLElement>;
+  @ViewChild('composer') composer?: ElementRef<HTMLInputElement>;
   room: AcademicConversation | null = null;
   messages: Message[] = [];
   myId = 0;
   loading = true;
   error = '';
   newMessage = '';
-  panel: 'add' | 'decline' | null = null;
+  panel: 'invite' | 'decline' | null = null;
   busy = false;
   decisionError = '';
   teamName = '';
@@ -45,6 +48,7 @@ export class ConversationDetailComponent implements OnInit, OnDestroy, AfterView
   loadingOlder = false;
   canLoadOlder = false;
   courseName = courseName;
+  readonly starters = ['Привет! Какую роль хочешь взять в проекте?', 'Есть идеи для проекта?', 'Когда удобно обсудить проект?'];
   private chatId = 0;
   private refreshBusy = false;
   private roomRevision = 0;
@@ -181,13 +185,17 @@ export class ConversationDetailComponent implements OnInit, OnDestroy, AfterView
     this.pendingDraft = this.newMessage;
     this.ackTimer = setTimeout(() => this.failSend(), 8000);
   }
+  draftStarter(text: string): void {
+    this.newMessage = text;
+    this.composer?.nativeElement.focus();
+  }
   private failSend(): void {
     clearTimeout(this.ackTimer);
     this.pending = '';
     this.error = 'Не удалось отправить сообщение. Попробуйте ещё раз.';
     this.refresh();
   }
-  open(panel: 'add' | 'decline'): void {
+  open(panel: 'invite' | 'decline'): void {
     this.panel = panel;
     this.decisionError = '';
   }
@@ -202,13 +210,19 @@ export class ConversationDetailComponent implements OnInit, OnDestroy, AfterView
   }
   decide(): void {
     if (!this.room || !this.panel || this.busy) return;
-    if (this.panel === 'add' && !this.room.my_team_id && this.teamName.trim().length < 2) return;
-    const decision = this.panel;
+    if (this.panel === 'invite' && !this.room.my_team_id && this.teamName.trim().length < 2) return;
+    this.submitDecision(this.panel, this.teamName.trim());
+  }
+  answerInvitation(decision: 'accept' | 'reject'): void {
+    if (this.busy || !this.room?.invitation_id || this.room.invitation_status !== 'pending') return;
+    this.submitDecision(decision, '', this.room.invitation_id);
+  }
+  private submitDecision(decision: ConversationDecision, teamName: string, invitationID = 0): void {
     this.roomRevision++;
     this.busy = true;
     this.decisionError = '';
     this.api
-      .decideConversation(this.chatId, decision, this.teamName.trim())
+      .decideConversation(this.chatId, decision, teamName, invitationID)
       .pipe(takeUntil(this.destroyed))
       .subscribe({
         next: (res) => {

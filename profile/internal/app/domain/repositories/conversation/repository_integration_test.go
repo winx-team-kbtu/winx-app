@@ -5,14 +5,21 @@ package conversation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
 	"testing"
+	header "winx-profile/internal/app/core/contracts/microservices/header-contract"
+	teamHandler "winx-profile/internal/app/domain/handlers/team"
 	choice "winx-profile/internal/app/domain/repositories/choice"
 	team "winx-profile/internal/app/domain/repositories/team"
+
+	"github.com/gin-gonic/gin"
 )
 
 type fixture struct {
@@ -20,6 +27,56 @@ type fixture struct {
 	repo    *Repository
 	choices choice.Repository
 	a, b    int64
+}
+
+func TestTeammateChatSurvivesLeavingTeam(t *testing.T) {
+	f := fresh(t)
+	ctx := context.Background()
+	teams := team.NewRepository(f.db)
+	created, err := teams.Create(ctx, 9001, f.a, "Project", "CHAT22")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = teams.Join(ctx, 9002, created.JoinCode); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = f.repo.OpenForTeammate(ctx, 9001, 9003, f.a); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("non-teammate chat: %v", err)
+	}
+	chatID, err := f.repo.OpenForTeammate(ctx, 9001, 9002, f.a)
+	if err != nil || chatID == 0 {
+		t.Fatalf("open teammate chat: %d %v", chatID, err)
+	}
+	if again, err := f.repo.OpenForTeammate(ctx, 9002, 9001, f.a); err != nil || again != chatID {
+		t.Fatalf("existing chat was not reused: %d %v", again, err)
+	}
+	if err = f.db.Exec("INSERT INTO messages(chat_id,sender_id,content) VALUES(?,9001,'Hello')", chatID).Error; err != nil {
+		t.Fatal(err)
+	}
+	gin.SetMode(gin.TestMode)
+	api := gin.New()
+	api.POST("/members", teamHandler.ManageMember(f.db))
+	request := httptest.NewRequest(http.MethodPost, "/members", strings.NewReader(fmt.Sprintf(
+		`{"course_id":%d,"member_id":9001,"team_id":%d}`, f.a, created.ID,
+	)))
+	request.Header.Set("Content-Type", "application/json")
+	request = request.WithContext(context.WithValue(ctx, header.AuthUserKey{}, header.AuthUser{ID: 9001}))
+	response := httptest.NewRecorder()
+	api.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("leave team: %d %s", response.Code, response.Body.String())
+	}
+	room, err := f.repo.Get(ctx, 9002, chatID)
+	if err != nil || room.Status != "open" || room.TeamID != nil || !room.CanWrite {
+		t.Fatalf("chat after leaving: %+v %v", room, err)
+	}
+	if messages, err := f.repo.Messages(ctx, 9001, chatID, 0); err != nil || len(messages) != 1 {
+		t.Fatalf("history after leaving: %+v %v", messages, err)
+	}
+	current, err := teams.GetByUserCourse(ctx, 9002, f.a)
+	if err != nil || current.CreatedBy == nil || *current.CreatedBy != 9002 {
+		t.Fatalf("creator role was not transferred: %+v %v", current, err)
+	}
 }
 
 func fresh(t *testing.T) fixture {
@@ -85,7 +142,7 @@ func TestConversationLikeAndAccess(t *testing.T) {
 		t.Fatal("reciprocal like duplicated conversation")
 	}
 	var count int64
-	f.db.Table("chats").Count(&count)
+	f.db.Table("chats").Where("course_id=?", f.a).Count(&count)
 	if count != 1 {
 		t.Fatal(count)
 	}
@@ -101,7 +158,7 @@ func TestConversationLikeAndAccess(t *testing.T) {
 	if _, err := f.repo.Messages(ctx, 9003, id, 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("outsider history: %v", err)
 	}
-	if _, err := f.repo.Decide(ctx, 9003, id, "decline", ""); !errors.Is(err, ErrNotFound) {
+	if _, err := f.repo.Decide(ctx, 9003, id, "decline", "", 0); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("outsider decision: %v", err)
 	}
 	other := f.like(t, 9001, 9002, f.b)
@@ -117,7 +174,7 @@ func TestConversationDeclineKeepsHistoryAndIsFinal(t *testing.T) {
 	ctx := context.Background()
 	id := f.like(t, 9001, 9002, f.a)
 	f.db.Exec("INSERT INTO messages(chat_id,sender_id,content) VALUES(?,9001,'Hello')", id)
-	room, err := f.repo.Decide(ctx, 9002, id, "decline", "")
+	room, err := f.repo.Decide(ctx, 9002, id, "decline", "", 0)
 	if err != nil || room.Status != "declined" {
 		t.Fatalf("%+v %v", room, err)
 	}
@@ -131,7 +188,7 @@ func TestConversationDeclineKeepsHistoryAndIsFinal(t *testing.T) {
 			t.Fatalf("lost history: %v", err)
 		}
 	}
-	if _, err = f.repo.Decide(ctx, 9001, id, "add", "No"); !errors.Is(err, ErrClosed) {
+	if _, err = f.repo.Decide(ctx, 9001, id, "invite", "No", 0); !errors.Is(err, ErrClosed) {
 		t.Fatalf("reopened declined chat: %v", err)
 	}
 	f.like(t, 9001, 9002, f.a)
@@ -140,51 +197,109 @@ func TestConversationDeclineKeepsHistoryAndIsFinal(t *testing.T) {
 		t.Fatal("re-like reopened declined chat")
 	}
 }
-func TestConversationCreateTeamIsAtomicAndIdempotent(t *testing.T) {
+func TestConversationInvitationRequiresRecipientAcceptance(t *testing.T) {
 	f := fresh(t)
 	ctx := context.Background()
 	id := f.like(t, 9001, 9002, f.a)
-	if _, err := f.repo.Decide(ctx, 9001, id, "add", "x"); !errors.Is(err, ErrName) {
+	if _, err := f.repo.Decide(ctx, 9001, id, "invite", "x", 0); !errors.Is(err, ErrName) {
 		t.Fatal(err)
 	}
 	var count int64
-	f.db.Table("teams").Count(&count)
+	f.db.Table("teams").Where("course_id=?", f.a).Count(&count)
 	if count != 0 {
 		t.Fatal("failed decision created a team")
 	}
-	room, err := f.repo.Decide(ctx, 9001, id, "add", "Course project")
-	if err != nil || room.Status != "joined" || room.MyTeamSize != 2 {
+	// Older clients can still send their add action, which now only invites.
+	room, err := f.repo.Decide(ctx, 9001, id, "add", "Course project", 0)
+	if err != nil || room.Status != "open" || room.MyTeamSize != 1 || room.PeerTeamID != nil || room.InvitationID == nil {
 		t.Fatalf("%+v %v", room, err)
 	}
-	again, err := f.repo.Decide(ctx, 9002, id, "add", "")
+	invitationID := *room.InvitationID
+	rooms, err := f.repo.List(ctx, 9002, f.a, 50, 0)
+	if err != nil || len(rooms) != 1 || rooms[0].InvitationID == nil || *rooms[0].InvitationID != invitationID ||
+		rooms[0].InviterID == nil || *rooms[0].InviterID != 9001 ||
+		rooms[0].InvitationTeamName == nil || *rooms[0].InvitationTeamName != "Course project" {
+		t.Fatalf("recipient list: %+v %v", rooms, err)
+	}
+	again, err := f.repo.Decide(ctx, 9001, id, "invite", "Course project", 0)
+	if err != nil || again.InvitationID == nil || *again.InvitationID != invitationID {
+		t.Fatalf("duplicate invite: %+v %v", again, err)
+	}
+	if _, err = f.repo.Decide(ctx, 9001, id, "accept", "", invitationID); !errors.Is(err, ErrInviteRecipient) {
+		t.Fatalf("sender accepted invitation: %v", err)
+	}
+	if _, err = f.repo.Decide(ctx, 9002, id, "invite", "Other team", 0); !errors.Is(err, ErrInvitePending) {
+		t.Fatalf("recipient replaced a pending invitation: %v", err)
+	}
+	room, err = f.repo.Decide(ctx, 9002, id, "accept", "", invitationID)
+	if err != nil || room.Status != "joined" || room.MyTeamSize != 2 || room.TeamID == nil {
+		t.Fatalf("accept: %+v %v", room, err)
+	}
+	again, err = f.repo.Decide(ctx, 9002, id, "accept", "", invitationID)
 	if err != nil || again.TeamID == nil || *again.TeamID != *room.TeamID {
 		t.Fatalf("not idempotent: %+v %v", again, err)
 	}
-	if _, err = f.repo.Decide(ctx, 9002, id, "decline", ""); !errors.Is(err, ErrClosed) {
+	if _, err = f.repo.Decide(ctx, 9002, id, "decline", "", 0); !errors.Is(err, ErrClosed) {
 		t.Fatal("decline removed existing membership")
 	}
 	var size int64
-	f.db.Table("team_members").Count(&size)
+	f.db.Table("team_members").Where("course_id=?", f.a).Count(&size)
 	if size != 2 {
 		t.Fatal(size)
 	}
 }
-func TestConversationConcurrentAddsRespectFiveMembers(t *testing.T) {
+func TestConversationRejectKeepsChatAndStaleInvitationCannotBeAccepted(t *testing.T) {
+	f := fresh(t)
+	ctx := context.Background()
+	id := f.like(t, 9001, 9002, f.a)
+	room, err := f.repo.Decide(ctx, 9001, id, "invite", "Course project", 0)
+	if err != nil || room.InvitationID == nil {
+		t.Fatalf("invite: %+v %v", room, err)
+	}
+	old := *room.InvitationID
+	room, err = f.repo.Decide(ctx, 9002, id, "reject", "", old)
+	if err != nil || room.Status != "open" || !room.CanWrite || room.MyTeamID != nil ||
+		room.InvitationStatus == nil || *room.InvitationStatus != "declined" {
+		t.Fatalf("reject: %+v %v", room, err)
+	}
+	room, err = f.repo.Decide(ctx, 9001, id, "invite", "", 0)
+	if err != nil || room.InvitationID == nil || *room.InvitationID == old {
+		t.Fatalf("re-invite: %+v %v", room, err)
+	}
+	if _, err = f.repo.Decide(ctx, 9002, id, "accept", "", old); !errors.Is(err, ErrInviteMissing) {
+		t.Fatalf("stale acceptance: %v", err)
+	}
+	if _, err = f.repo.Decide(ctx, 9002, id, "accept", "", *room.InvitationID); err != nil {
+		t.Fatalf("accept updated invitation: %v", err)
+	}
+}
+
+func TestConversationConcurrentAcceptancesRespectFiveMembers(t *testing.T) {
 	f := fresh(t)
 	ctx := context.Background()
 	created, err := team.NewRepository(f.db).Create(ctx, 9001, f.a, "Concurrent", "CQA234")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ids := []int64{}
+	type pendingInvite struct{ chatID, inviteID, userID int64 }
+	var invitations []pendingInvite
 	for peer := int64(9002); peer <= 9007; peer++ {
-		ids = append(ids, f.like(t, 9001, peer, f.a))
+		id := f.like(t, 9001, peer, f.a)
+		room, err := f.repo.Decide(ctx, 9001, id, "invite", "", 0)
+		if err != nil || room.InvitationID == nil {
+			t.Fatalf("invite: %+v %v", room, err)
+		}
+		invitations = append(invitations, pendingInvite{id, *room.InvitationID, peer})
 	}
-	results := make(chan error, len(ids))
+	results := make(chan error, len(invitations))
 	var wg sync.WaitGroup
-	for _, id := range ids {
+	for _, invite := range invitations {
 		wg.Add(1)
-		go func(id int64) { defer wg.Done(); _, err := f.repo.Decide(ctx, 9001, id, "add", ""); results <- err }(id)
+		go func() {
+			defer wg.Done()
+			_, err := f.repo.Decide(ctx, invite.userID, invite.chatID, "accept", "", invite.inviteID)
+			results <- err
+		}()
 	}
 	wg.Wait()
 	close(results)
@@ -215,7 +330,7 @@ func TestConversationCannotStealSomeoneFromAnotherTeam(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.repo.Decide(ctx, 9001, id, "add", "New"); !errors.Is(err, ErrOtherTeam) {
+	if _, err = f.repo.Decide(ctx, 9001, id, "invite", "New", 0); !errors.Is(err, ErrOtherTeam) {
 		t.Fatalf("moved existing member: %v", err)
 	}
 	var own int64
@@ -249,7 +364,7 @@ func TestConversationConcurrentLikeCreatesOneRow(t *testing.T) {
 		}
 	}
 	var count int64
-	f.db.Table("chats").Count(&count)
+	f.db.Table("chats").Where("course_id=?", f.a).Count(&count)
 	if count != 1 {
 		t.Fatal(count)
 	}

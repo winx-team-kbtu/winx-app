@@ -29,17 +29,13 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(ctx context.Context, input repodto.CreateDTO) (models.Chat, error) {
-	chat := models.Chat{
-		MatchID:   input.MatchID,
-		UserOneID: input.UserOneID,
-		UserTwoID: input.UserTwoID,
-	}
-
-	if err := r.db.WithContext(ctx).Create(&chat).Error; err != nil {
+	if err := r.db.WithContext(ctx).Exec(`INSERT INTO chats (match_id,user_one_id,user_two_id)
+ SELECT id,user_one_id,user_two_id FROM matches
+ WHERE id=? AND ((user_one_id=? AND user_two_id=?) OR (user_one_id=? AND user_two_id=?))
+ FOR KEY SHARE ON CONFLICT(match_id) DO NOTHING`, input.MatchID, input.UserOneID, input.UserTwoID, input.UserTwoID, input.UserOneID).Error; err != nil {
 		return models.Chat{}, fmt.Errorf("failed to create chat: %w", err)
 	}
-
-	return chat, nil
+	return r.FindByMatchID(ctx, input.MatchID)
 }
 
 func (r *repository) FindByMatchID(ctx context.Context, matchID int64) (models.Chat, error) {
@@ -59,6 +55,7 @@ func (r *repository) ListByUserID(ctx context.Context, input repodto.ListDTO) ([
 
 	q := r.db.WithContext(ctx).
 		Where("course_id IS NULL").
+		Where("EXISTS (SELECT 1 FROM matches WHERE id=chats.match_id)").
 		Where("user_one_id = ? OR user_two_id = ?", input.UserID, input.UserID).
 		Order("created_at DESC")
 

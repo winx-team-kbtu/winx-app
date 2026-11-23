@@ -1,15 +1,17 @@
 <main class="chat-page">
   <header class="chat-topbar">
-    <a href="/chats" class="back-btn" aria-label="Назад к чатам"
+    <a routerLink="/chats" class="back-btn" aria-label="Назад к чатам"
       ><app-icon name="back" [size]="18" /><span>Назад</span></a
     >
     <div>
-      <h1 class="chat-title">Переписка</h1>
+      <h1 class="chat-title">{{ peerName || 'Переписка' }}</h1>
     </div>
     <app-icon name="chat" [size]="20" class="chat-heading-icon" />
   </header>
   <div *ngIf="loading" class="spinner" aria-label="Загрузка сообщений"></div>
-  <div *ngIf="!loading" class="messages-container">
+  <div *ngIf="ready" class="messages-container" role="log" aria-label="Сообщения">
+    <app-chat-starters *ngIf="!messages.length && !newMessage.trim()"
+      [starters]="starters" (picked)="draftStarter($event)" />
     <div
       class="message"
       *ngFor="let msg of messages"
@@ -21,21 +23,30 @@
     </div>
     <div #messagesEnd></div>
   </div>
-  <div class="chat-input-area">
+  <p *ngIf="error" class="error-msg social-chat-error" role="alert">
+    {{ error }}<button *ngIf="!ready" class="btn btn-ghost" type="button" (click)="loadMessages()">Повторить</button>
+  </p>
+  <p *ngIf="ready && !chat.connected()" class="chat-connection" role="status">
+    Чат подключается… <button type="button" class="btn btn-ghost" (click)="connect()">Подключиться</button>
+  </p>
+  <form class="chat-input-area" *ngIf="ready" (ngSubmit)="send()">
     <input
+      #composer
       type="text"
+      name="message"
       class="chat-input"
       placeholder="Сообщение…"
       aria-label="Сообщение"
+      autocomplete="off"
+      maxlength="2000"
       [(ngModel)]="newMessage"
-      (keyup.enter)="send()"
     /><button
       class="send-btn"
-      (click)="send()"
-      [disabled]="!newMessage.trim()"
+      type="submit"
+      [disabled]="!newMessage.trim() || !!pending || !chat.connected()"
       aria-label="Отправить сообщение"
     >
       <app-icon name="send" [size]="20" />
     </button>
-  </div>
+  </form>
 </main>

@@ -13,6 +13,7 @@ import (
 	"winx-chat/internal/app/core/http/middleware"
 	"winx-chat/internal/app/domain/accountguard"
 	eventdto "winx-chat/internal/app/domain/core/dto/services/event"
+	chatRepository "winx-chat/internal/app/domain/repositories/chat"
 	chatService "winx-chat/internal/app/domain/services/chat"
 	msgService "winx-chat/internal/app/domain/services/message"
 	"winx-chat/pkg/cache"
@@ -220,6 +221,9 @@ func (s *Server) handleMatchCreated(ctx context.Context, payload []byte) error {
 	}
 
 	chat, err := s.chatService.CreateFromMatch(ctx, event.MatchID, event.UserOneID, event.UserTwoID)
+	if errors.Is(err, chatRepository.ErrNotFound) {
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("create chat from match: %w", err)
 	}

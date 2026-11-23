@@ -69,7 +69,10 @@ func (f *fakeRepo) Join(_ context.Context, userID int64, code string) (models.Te
 			return models.Team{}, repository.ErrCourseNotSelected
 		}
 
-		if _, ok := f.teams[[2]int64{userID, team.CourseID}]; ok {
+		if existing, ok := f.teams[[2]int64{userID, team.CourseID}]; ok {
+			if existing.ID == team.ID {
+				return existing, nil
+			}
 			return models.Team{}, repository.ErrAlreadyInTeam
 		}
 
@@ -247,7 +250,6 @@ func TestJoin_Rejections(t *testing.T) {
 		want error
 	}{
 		{"unknown code", 2, "ZZZZZZ", ErrNotFound},
-		{"already a member", 1, "ABC234", ErrAlreadyInTeam},
 		{"user did not select the team's course", 3, "ABC234", ErrCourseNotSelected},
 	}
 
@@ -266,6 +268,20 @@ func TestJoin_Rejections(t *testing.T) {
 				t.Fatalf("rejected join must not mutate the team: %d -> %d", before, got)
 			}
 		})
+	}
+}
+
+func TestJoin_AllowsPreviouslyIssuedCodesAndRetries(t *testing.T) {
+	repo := newFakeRepo()
+	newTeamWithCode(t, repo)
+	key := [2]int64{1, 10}
+	existing := repo.teams[key]
+	existing.JoinCode = "DEMO01"
+	repo.teams[key] = existing
+	svc := NewServiceWithRepository(repo, fixedCodes("X"))
+	got, err := svc.Join(context.Background(), 1, " demo01 ")
+	if err != nil || got.ID != existing.ID || got.MemberCount != existing.MemberCount {
+		t.Fatalf("retry with existing code: %+v %v", got, err)
 	}
 }
 

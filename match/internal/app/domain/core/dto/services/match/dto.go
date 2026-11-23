@@ -18,6 +18,7 @@ type DeleteDTO struct {
 // MatchWithProfile is a match enriched with the matched user's profile info.
 type MatchWithProfile struct {
 	ID            int64
+	ChatID        int64
 	MatchedUserID int64
 	Name          string
 	City          string

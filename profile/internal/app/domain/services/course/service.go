@@ -13,6 +13,7 @@ import (
 const MaxUserCourses = 10
 
 var ErrInvalidCourseIDs = errors.New("invalid course ids")
+var ErrTeamCourse = repository.ErrTeamCourse
 
 type Service interface {
 	List(ctx context.Context) ([]models.Course, error)

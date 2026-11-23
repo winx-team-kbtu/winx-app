@@ -10,6 +10,7 @@ import (
 // Resource is the minimal match representation used when a match is first created.
 type Resource struct {
 	ID        int64     `json:"id"`
+	ChatID    int64     `json:"chat_id,omitempty"`
 	UserOneID int64     `json:"user_one_id"`
 	UserTwoID int64     `json:"user_two_id"`
 	CreatedAt time.Time `json:"created_at"`
@@ -18,6 +19,7 @@ type Resource struct {
 func NewResource(m models.Match) *Resource {
 	return &Resource{
 		ID:        m.ID,
+		ChatID:    m.ChatID,
 		UserOneID: m.UserOneID,
 		UserTwoID: m.UserTwoID,
 		CreatedAt: m.CreatedAt,
@@ -27,6 +29,7 @@ func NewResource(m models.Match) *Resource {
 // EnrichedResource is returned when listing matches — includes the matched user's profile.
 type EnrichedResource struct {
 	ID            int64     `json:"id"`
+	ChatID        int64     `json:"chat_id,omitempty"`
 	MatchedUserID int64     `json:"matched_user_id"`
 	Name          string    `json:"name"`
 	City          string    `json:"city"`
@@ -40,6 +43,7 @@ func NewCollection(matches []svcDto.MatchWithProfile) []*EnrichedResource {
 	for _, m := range matches {
 		result = append(result, &EnrichedResource{
 			ID:            m.ID,
+			ChatID:        m.ChatID,
 			MatchedUserID: m.MatchedUserID,
 			Name:          m.Name,
 			City:          m.City,

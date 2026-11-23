@@ -26,21 +26,35 @@
         <h2>{{ match.name || 'Новый знакомый' }}</h2>
         <time>{{ match.created_at | date: 'dd.MM' }}</time>
       </div>
-      <button
+      <a
+        *ngIf="match.chat_id"
         class="icon-button"
-        [disabled]="!getChatId(match)"
-        (click)="openChat(match)"
+        [routerLink]="['/chats', match.chat_id]"
+        [state]="{ peerName: match.name }"
         [attr.aria-label]="'Написать: ' + match.name"
       >
         <app-icon name="chat" [size]="20" />
-      </button>
+      </a>
       <button
         class="icon-button quiet-action"
-        (click)="unmatch(match)"
+        type="button"
+        (click)="confirmRemoval(match)"
         [attr.aria-label]="'Убрать совпадение: ' + match.name"
       >
         <app-icon name="close" [size]="17" />
       </button>
     </article>
   </div>
+  <app-sheet *ngIf="removing" title="Убрать совпадение?" [locked]="saving" (closed)="removing = null">
+    <div class="sheet-body">
+      <p>Совпадение и переписка исчезнут у обоих участников.</p>
+      <p *ngIf="removalError" class="error-msg mt-16" role="alert">{{ removalError }}</p>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" type="button" [disabled]="saving" (click)="removing = null">Отмена</button>
+      <button class="btn btn-danger" type="button" [disabled]="saving" (click)="unmatch()">
+        {{ saving ? 'Убираем…' : 'Убрать совпадение' }}
+      </button>
+    </div>
+  </app-sheet>
 </main>

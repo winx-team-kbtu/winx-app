@@ -146,6 +146,12 @@
   font-size: 11px;
   margin: 16px 0 24px;
 }
+.quiet-toast a {
+  margin-inline-start: 8px;
+  color: inherit;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
 @media (max-width: 640px) {
   .deck {
     margin-top: 20px;
