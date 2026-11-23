@@ -71,8 +71,27 @@ type service struct {
 	profile ProfileData
 }
 
-func NewService(users Users, tokens Tokens, cache Cache, profile ProfileData) Service {
+func NewService(users Users, tokens Tokens, cache Cache, profile ProfileData) *service {
 	return &service{users: users, tokens: tokens, cache: cache, profile: profile}
+}
+
+// DeleteMarked runs the normal erasure pipeline for an already blocked account.
+func (s *service) DeleteMarked(ctx context.Context, id int64) error {
+	user, err := s.users.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if user.DeletionRequestedAt == nil {
+		return ErrNotFound
+	}
+	if err := s.users.TouchAttempt(ctx, id); err != nil {
+		return err
+	}
+	return s.run(ctx, user)
+}
+
+func (s *service) RevokeSessions(ctx context.Context, id int64) error {
+	return s.revokeSessions(ctx, id)
 }
 
 func (s *service) Delete(ctx context.Context, userID int64, password string) error {

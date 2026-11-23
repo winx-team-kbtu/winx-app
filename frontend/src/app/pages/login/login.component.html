@@ -6,15 +6,17 @@
     <div *ngIf="error" class="error-msg" role="alert">{{ error }}</div>
     <form (ngSubmit)="submit()" #form="ngForm">
       <div class="form-group">
-        <label for="email">Эл. почта</label
+        <label for="email">Эл. почта или логин</label
         ><input
           id="email"
-          type="email"
+          type="text"
           class="form-control"
           placeholder="you@example.com"
           [(ngModel)]="email"
           name="email"
-          autocomplete="email"
+          autocomplete="username"
+          autocapitalize="none"
+          spellcheck="false"
           required
         />
       </div>

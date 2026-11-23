@@ -9,6 +9,7 @@ import (
 	"auth/internal/app/core/validation"
 	authHandler "auth/internal/app/domain/handlers"
 	accountHandler "auth/internal/app/domain/handlers/account"
+	adminHandler "auth/internal/app/domain/handlers/admin"
 	passwordHandler "auth/internal/app/domain/handlers/password"
 	roleHandler "auth/internal/app/domain/handlers/role"
 	userHandler "auth/internal/app/domain/handlers/user"
@@ -83,6 +84,7 @@ func (s *Server) initDomainRoutes() {
 		profileclient.New(configs.Config.Services.Profile.URL, configs.Config.Services.Profile.APIKey, 30*time.Second),
 	)
 	s.deletions = accountService
+	adminHandler.New(s.pgdb, accountService.DeleteMarked, accountService.RevokeSessions).Routes(adminRouter.Group("/admin"))
 	handlerAccount := accountHandler.NewHandler(accountService, binder)
 
 	s.initAuthRoutes(handlerAuth, authUserMiddleware)

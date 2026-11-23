@@ -1,0 +1,131 @@
+<div class="admin-shell">
+  <aside class="admin-rail">
+    <a routerLink="/" class="admin-brand" aria-label="Winx">winx<span>.</span></a>
+    <nav aria-label="Панель администратора">
+      <button type="button" (click)="choose('overview')" [class.current]="nav === 'overview'" [attr.aria-current]="nav === 'overview' ? 'page' : null"><app-icon name="book" [size]="17" />Сводка</button>
+      <button type="button" (click)="choose('data')" [class.current]="nav === 'data'" [attr.aria-current]="nav === 'data' ? 'page' : null"><app-icon name="users" [size]="17" />Данные</button>
+      <button type="button" (click)="choose('audit')" [class.current]="nav === 'audit'" [attr.aria-current]="nav === 'audit' ? 'page' : null"><app-icon name="check" [size]="17" />Журнал действий</button>
+    </nav>
+    <a class="return-link" routerLink="/"><app-icon name="back" [size]="17" />Назад в Winx</a>
+  </aside>
+  <main class="admin-main">
+    <header class="admin-heading">
+      <div>
+        <h1>{{ nav === 'overview' ? 'Сводка' : nav === 'audit' ? 'Журнал действий' : 'Данные Winx' }}</h1>
+        <p *ngIf="nav === 'overview'">Активность в знакомствах и командах</p>
+      </div>
+      <div *ngIf="nav === 'overview' && !accessDenied" class="range-picker" aria-label="Период аналитики">
+        <button *ngFor="let period of periods" type="button" [attr.aria-pressed]="days === period" (click)="setPeriod(period)">{{ period }} дней</button>
+      </div>
+    </header>
+    <p *ngIf="loading" class="admin-status" role="status">Загрузка…</p>
+    <p *ngIf="error" class="error-msg" role="alert">{{ error }}
+      <button class="btn btn-ghost" *ngIf="!accessDenied" type="button" (click)="entities.length ? load() : initialize()">Повторить</button>
+    </p>
+    <p *ngIf="notice" class="admin-status" role="status">{{ notice }}</p>
+
+    <ng-container *ngIf="nav === 'overview' && !error && analytics as report">
+      <dl class="kpi-strip surface" [attr.aria-busy]="loading">
+        <div *ngFor="let metric of kpis">
+          <dt>{{ label(metric) }}</dt>
+          <dd>{{ report.current[metric] | number }}</dd>
+          <small>{{ trend(metric) }}</small>
+        </div>
+      </dl>
+      <section class="surface chart-panel" aria-labelledby="daily-heading">
+        <header class="section-head">
+          <div><h2 id="daily-heading">Активность по дням</h2><p>{{ formatDay(report.from) }} — {{ formatDay(report.to) }} · Алматы</p></div>
+          <label><span class="sr-only">Показатели графика</span><select class="form-control" [(ngModel)]="graph">
+            <option value="conversations">Сообщения</option><option value="connections">Мэтчи и диалоги</option><option value="growth">Рост</option>
+          </select></label>
+        </header>
+        <div class="legend" aria-hidden="true"><span *ngFor="let key of chartKeys">{{ label(key) }}</span></div>
+        <div class="plot" aria-hidden="true">
+          <div class="axis"><span>{{ chartMax | number }}</span><span>0</span></div>
+          <div class="columns">
+            <div class="bars" *ngFor="let day of report.series" [attr.title]="day.date + ' · ' + day[chartKeys[0]] + ' / ' + day[chartKeys[1]]">
+              <div *ngFor="let key of chartKeys" [style.height.%]="$any(day[key]) / chartMax * 100"></div>
+            </div>
+          </div>
+        </div>
+        <details class="chart-data">
+          <summary>Точные значения по дням</summary>
+          <div class="table-scroll"><table>
+            <thead><tr><th scope="col">Дата</th><th scope="col" *ngFor="let key of chartKeys">{{ label(key) }}</th></tr></thead>
+            <tbody><tr *ngFor="let day of report.series"><td>{{ formatDay(day.date) }}</td><td *ngFor="let key of chartKeys">{{ day[key] }}</td></tr></tbody>
+          </table></div>
+        </details>
+      </section>
+      <div class="mode-grid">
+        <section class="surface mode-panel"><h2>Знакомства</h2><dl><div *ngFor="let key of social"><dt>{{ label(key) }}</dt><dd>{{ report.current[key] | number }}</dd></div></dl></section>
+        <section class="surface mode-panel"><h2>Тиммейты</h2><dl><div *ngFor="let key of team"><dt>{{ label(key) }}</dt><dd>{{ report.current[key] | number }}</dd></div></dl></section>
+      </div>
+      <p class="admin-note">Активность считается по сохранённым действиям. Вступления включают участников, создавших команду.</p>
+    </ng-container>
+
+    <section *ngIf="nav !== 'overview' && entities.length" class="surface record-panel" [attr.aria-busy]="loading">
+      <div class="record-tools">
+        <label *ngIf="nav === 'data'" class="entity-picker"><span>Сущность</span>
+          <select class="form-control" [ngModel]="selected" (ngModelChange)="selectEntity($event)">
+            <option *ngFor="let option of editableEntities" [value]="option.name">{{ option.label }}</option>
+          </select>
+        </label>
+        <form (ngSubmit)="search()" class="search-form">
+          <label><span class="sr-only">Поиск по записям</span><input class="form-control" name="query" type="search" [(ngModel)]="query" maxlength="240" placeholder="Найти запись…" /></label>
+          <button class="btn btn-outline" type="submit">Найти</button>
+        </form>
+        <button class="btn btn-primary" *ngIf="data && !entity?.read_only" type="button" [disabled]="loading" (click)="open('create')"><app-icon name="plus" [size]="16" />Создать запись</button>
+      </div>
+      <ng-container *ngIf="data as result">
+        <div class="table-scroll" *ngIf="result.rows.length; else noRecords" tabindex="0" aria-label="Таблица записей">
+          <table>
+            <thead><tr><th scope="col" *ngFor="let field of columns">{{ label(field.name) }}</th><th scope="col">Действия</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let record of result.rows">
+                <td *ngFor="let field of columns"><span class="cell" [attr.title]="cell(record[field.name])">{{ cell(record[field.name]) }}</span></td>
+                <td class="row-actions">
+                  <button class="btn btn-ghost" type="button" (click)="open('edit', record)">{{ entity?.read_only ? 'Открыть' : 'Править' }}</button>
+                  <button *ngIf="!entity?.read_only" class="btn btn-ghost delete-action" type="button" (click)="open('delete', record)">Удалить</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #noRecords><p class="admin-status">Записей нет.</p></ng-template>
+        <footer class="pagination">
+          <span>Страница {{ result.page }}</span>
+          <button class="btn btn-outline" type="button" [disabled]="loading || result.page < 2" (click)="turn(result.page - 1)">Назад</button>
+          <button class="btn btn-outline" type="button" [disabled]="loading || !result.has_more" (click)="turn(result.page + 1)">Далее</button>
+        </footer>
+      </ng-container>
+    </section>
+  </main>
+</div>
+
+<app-sheet *ngIf="panel" [title]="panel === 'delete' ? 'Удалить запись?' : panel === 'create' ? 'Новая запись' : (entity?.label || 'Запись')" [locked]="saving" (closed)="close()">
+  <form class="sheet-form" (ngSubmit)="save()">
+    <div class="sheet-body record-form">
+      <p *ngIf="panel === 'delete'">Запись и зависимые данные могут быть удалены. Действие попадёт в журнал.</p>
+      <ng-container *ngIf="panel !== 'delete'">
+        <label *ngFor="let field of formFields">
+          <span>{{ label(field.name) }}</span>
+          <textarea *ngIf="jsonField(field); else scalar" class="form-control" rows="3" [name]="field.name" [(ngModel)]="values[field.name]" [readonly]="disabled(field)"></textarea>
+          <ng-template #scalar>
+            <select *ngIf="field.type === 'boolean'; else textInput" class="form-control" [name]="field.name" [(ngModel)]="values[field.name]" [disabled]="disabled(field)">
+              <option value="">Нет значения</option><option value="true">Да</option><option value="false">Нет</option>
+            </select>
+            <ng-template #textInput><input class="form-control" [name]="field.name" [(ngModel)]="values[field.name]" [readonly]="disabled(field)" autocomplete="off" /></ng-template>
+          </ng-template>
+        </label>
+        <label *ngIf="selected === 'users'"><span>{{ panel === 'create' ? 'Пароль' : 'Новый пароль' }}</span><input class="form-control" name="password" type="password" minlength="8" maxlength="72" autocomplete="new-password" [(ngModel)]="password" /></label>
+      </ng-container>
+      <p *ngIf="panelError" class="error-msg" role="alert">{{ panelError }}</p>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" type="button" [disabled]="saving" (click)="close()">{{ entity?.read_only ? 'Закрыть' : 'Отмена' }}</button>
+      <button *ngIf="!entity?.read_only" class="btn" [class.btn-danger]="panel === 'delete'" [class.btn-primary]="panel !== 'delete'" type="submit" [disabled]="saving">
+        {{ saving ? 'Сохраняем…' : panel === 'delete' ? 'Удалить' : 'Сохранить' }}
+      </button>
+    </div>
+  </form>
+</app-sheet>

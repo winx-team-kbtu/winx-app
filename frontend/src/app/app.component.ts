@@ -9,7 +9,7 @@ import { CommonModule } from '@angular/common';
   standalone: true,
   imports: [RouterOutlet, NavbarComponent, CommonModule],
   template: `
-    <app-navbar *ngIf="auth.isLoggedIn() && !router.url.startsWith('/onboarding')"></app-navbar>
+    <app-navbar *ngIf="auth.isLoggedIn() && !router.url.startsWith('/onboarding') && !router.url.startsWith('/admin')"></app-navbar>
     <router-outlet></router-outlet>
   `,
   styles: [

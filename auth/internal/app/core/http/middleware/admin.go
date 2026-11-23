@@ -23,7 +23,7 @@ func AdminOnly(db *gorm.DB) gin.HandlerFunc {
 		var user models.User
 		if err := db.WithContext(ctx.Request.Context()).
 			Preload("Role").
-			Where("id = ?", authUser.ID).
+			Where("id = ? AND deletion_requested_at IS NULL", authUser.ID).
 			First(&user).Error; err != nil {
 			ctx.AbortWithStatusJSON(http.StatusForbidden, response.ErrorResponse("forbidden: admin access required"))
 			errorhandler.FailOnError(err, "admin middleware: failed to get user with role")

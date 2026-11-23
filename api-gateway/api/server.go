@@ -17,6 +17,7 @@ import (
 	notification "winx-api-gateway/internal/app/modules/notification"
 	"winx-api-gateway/internal/app/modules/profile"
 	"winx-api-gateway/internal/app/modules/recommendation"
+	"winx-api-gateway/internal/app/proxy"
 	"winx-api-gateway/internal/app/swagger"
 	"winx-api-gateway/pkg/metrics"
 
@@ -27,6 +28,8 @@ import (
 
 type Server struct {
 	authService           auth.Service
+	adminAuth             *proxy.Client
+	adminProfile          *proxy.Client
 	notificationService   notification.Service
 	profileService        profile.Service
 	matchService          match.Service
@@ -92,6 +95,8 @@ func (s *Server) initLayers(_ context.Context) error {
 		15*time.Second,
 	)
 	s.authService = auth.NewService(authClient)
+	s.adminAuth = proxy.NewClient(configs.Config.Services.Auth.URL, configs.Config.Services.Auth.APIKey, 45*time.Second)
+	s.adminProfile = proxy.NewClient(configs.Config.Services.Profile.URL, configs.Config.Services.Profile.APIKey, 30*time.Second)
 	logger.Info("Auth service client initialized (URL: %s)", configs.Config.Services.Auth.URL)
 
 	notificationClient := notification.NewClient(

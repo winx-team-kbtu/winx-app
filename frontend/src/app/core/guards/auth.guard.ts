@@ -14,7 +14,7 @@ export const authGuard: CanActivateFn = async (route, state) => {
     return router.createUrlTree(['/login'], {
       queryParams: { returnUrl: safeReturnUrl(state.url) },
     });
-  if (route.routeConfig?.path === 'onboarding') return true;
+  if (route.routeConfig?.path === 'onboarding' || route.routeConfig?.path === 'admin') return true;
   try {
     if (!(await onboarding.required())) return true;
   } catch {

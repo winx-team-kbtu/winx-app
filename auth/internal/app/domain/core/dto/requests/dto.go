@@ -1,7 +1,7 @@
 package requests
 
 type LoginDTO struct {
-	Email    string `json:"email" validate:"required,email"`
+	Email    string `json:"email" validate:"required,email|eq=admin"`
 	Password string `json:"password" validate:"required"`
 }
 

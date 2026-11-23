@@ -107,7 +107,7 @@ export function readAuthSession(): AuthSession | null {
 
 export function safeReturnUrl(value: string | null | undefined): string | null {
   if (!value || value.includes('\\')) return null;
-  return /^\/(?:discover|matches|chats(?:\/\d+)?|notifications|profile|team\/(?:discover|shortlist|chats(?:\/\d+)?|teams|profile))(?:\?[^#]*)?(?:#.*)?$/.test(
+  return /^\/(?:admin|discover|matches|chats(?:\/\d+)?|notifications|profile|team\/(?:discover|shortlist|chats(?:\/\d+)?|teams|profile))(?:\?[^#]*)?(?:#.*)?$/.test(
     value,
   )
     ? value

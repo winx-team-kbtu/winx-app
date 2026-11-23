@@ -7,6 +7,7 @@ import (
 	"winx-profile/internal/app/core/http/middleware"
 	corevalidation "winx-profile/internal/app/core/validation"
 	academicHandler "winx-profile/internal/app/domain/handlers/academic"
+	adminHandler "winx-profile/internal/app/domain/handlers/admin"
 	choiceHandler "winx-profile/internal/app/domain/handlers/choice"
 	conversationHandler "winx-profile/internal/app/domain/handlers/conversation"
 	courseHandler "winx-profile/internal/app/domain/handlers/course"
@@ -66,6 +67,10 @@ func (s *Server) initDomainRoutes() error {
 	binder := corevalidation.NewBinder(s.validator)
 
 	authUserRouter.Use(authUserMiddleware.AuthUser(), authUserMiddleware.ContextWithAuthUser())
+	adminDocuments := adminHandler.ProfileDocuments(s.pgdb, s.mongoDB)
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete} {
+		authUserRouter.Handle(method, "/admin/records", adminDocuments)
+	}
 
 	profiles, err := profileService.NewService(s.mongoDB, s.pgdb)
 	if err != nil {

@@ -3,6 +3,11 @@ import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   {
+    path: 'admin',
+    loadComponent: () => import('./pages/admin/admin.component').then(m => m.AdminComponent),
+    canActivate: [authGuard],
+  },
+  {
     path: 'onboarding',
     loadComponent: () =>
       import('./pages/onboarding/onboarding.component').then((m) => m.OnboardingComponent),
